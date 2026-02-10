@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg-primary: #0a0a0f;
+  --color-bg-secondary: #0d0d14;
+  --color-bg-tertiary: #1a1520;
+  --color-border-primary: #2a2520;
+  --color-border-secondary: #3a3028;
+  --color-gold: #c8a84e;
+  --color-gold-dim: #8a7d65;
+  --color-text-primary: #d4c5a0;
+  --color-text-secondary: #6a5f4a;
+  --color-text-muted: #3a3028;
+  --font-serif: 'Georgia', serif;
+  --font-mono: 'Courier New', monospace;
+}
+
+body {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-serif);
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-primary);
+  border-radius: 3px;
+}
+
+/* RainbowKit theme overrides */
+[data-rk] {
+  --rk-colors-accentColor: var(--color-gold) !important;
+}

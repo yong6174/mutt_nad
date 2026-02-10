@@ -1,0 +1,25 @@
+# credentials
+.git-credentials
+
+# dev package (not committed)
+mutt-dev-package*
+
+# OS
+.DS_Store
+
+# env
+.env*
+
+# node
+node_modules/
+
+# next
+frontend/.next/
+frontend/out/
+
+# foundry
+contract/out/
+contract/cache/
+
+# misc
+*.pem
