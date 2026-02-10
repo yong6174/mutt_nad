@@ -18,6 +18,7 @@ frontend/.next/
 frontend/out/
 
 # foundry
+contract/lib/
 contract/out/
 contract/cache/
 
