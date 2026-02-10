@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAccount } from 'wagmi';
 import { useSearchParams } from 'next/navigation';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -22,6 +22,14 @@ const BLOODLINE_LABEL: Record<BloodlineGrade, string> = {
 };
 
 export default function BreedPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-20 text-text-secondary">Loading...</div>}>
+      <BreedContent />
+    </Suspense>
+  );
+}
+
+function BreedContent() {
   const { address, isConnected } = useAccount();
   const searchParams = useSearchParams();
   const partnerId = searchParams.get('partner');
