@@ -11,15 +11,18 @@
   --color-text-primary: #d4c5a0;
   --color-text-secondary: #6a5f4a;
   --color-text-muted: #3a3028;
-  --font-serif: 'Georgia', serif;
+  --font-display: var(--font-cinzel), 'Cinzel', serif;
+  --font-body: var(--font-crimson), 'Crimson Text', Georgia, serif;
+  --font-serif: var(--font-crimson), 'Crimson Text', Georgia, serif;
   --font-mono: 'Courier New', monospace;
 }
 
 body {
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
-  font-family: var(--font-serif);
+  font-family: var(--font-body);
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* Scrollbar */
@@ -37,4 +40,52 @@ body {
 /* RainbowKit theme overrides */
 [data-rk] {
   --rk-colors-accentColor: var(--color-gold) !important;
+}
+
+/* ============ Keyframes ============ */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-fast {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes pulse-hint {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes particle-float {
+  0% { transform: translateY(100vh) scale(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+}
+
+@keyframes letter-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes light-burst {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes egg-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }

@@ -14,8 +14,14 @@ export function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="flex justify-between items-center px-10 py-4 border-b border-border-primary bg-bg-secondary">
-      <Link href="/" className="text-2xl font-bold text-gold tracking-widest">
+    <header
+      className="flex justify-between items-center px-10 py-4 backdrop-blur-xl"
+      style={{
+        background: 'rgba(6,6,10,0.8)',
+        borderBottom: '1px solid rgba(200,168,78,0.1)',
+      }}
+    >
+      <Link href="/" className="font-display text-[22px] font-bold text-gold tracking-[4px]">
         MUTT
       </Link>
 
@@ -24,10 +30,8 @@ export function Header() {
           <Link
             key={href}
             href={href}
-            className={`text-sm tracking-wide uppercase transition-colors ${
-              pathname === href
-                ? 'text-gold border-b-2 border-gold pb-0.5'
-                : 'text-gold-dim hover:text-gold'
+            className={`font-display text-[13px] tracking-[2px] uppercase transition-colors ${
+              pathname === href ? 'text-gold' : 'text-text-secondary hover:text-gold'
             }`}
           >
             {label}
