@@ -91,8 +91,46 @@ export default function LandingPage() {
           </p>
         </div>
 
-        {/* Magic Circle */}
+        {/* Magic Circle + Aura Layers */}
         <div className="relative w-[400px] h-[400px]">
+          {/* Aura Layer 1: Glow (behind everything) */}
+          <div
+            className="absolute inset-[-30%] pointer-events-none overflow-hidden rounded-full"
+            style={{
+              mixBlendMode: 'lighten',
+              animation: 'aura-pulse 6s ease-in-out infinite',
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/images/glow.png" alt="" className="w-full h-full object-contain" />
+          </div>
+
+          {/* Aura Layer 2: Dust (slow counter-clockwise) */}
+          <div
+            className="absolute inset-[-40%] pointer-events-none overflow-hidden rounded-full"
+            style={{
+              mixBlendMode: 'lighten',
+              animation: 'spin-reverse 50s linear infinite',
+              opacity: 0.7,
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/images/dust.png" alt="" className="w-full h-full object-contain" />
+          </div>
+
+          {/* Aura Layer 3: Light rays (subtle breathing) */}
+          <div
+            className="absolute inset-[-15%] pointer-events-none overflow-hidden rounded-full"
+            style={{
+              mixBlendMode: 'lighten',
+              animation: 'aura-breathe 4s ease-in-out infinite',
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/images/light.png" alt="" className="w-full h-full object-contain" />
+          </div>
+
+          {/* Magic Circle (on top) */}
           <div
             className="absolute w-full h-full overflow-hidden rounded-full"
             style={{
