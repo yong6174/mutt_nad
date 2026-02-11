@@ -5,6 +5,25 @@ import { analyzeIdentity, randomMbti } from '@/lib/server/llm';
 import { MBTI_INDEX, type MBTI } from '@/types';
 import { createPublicClient, http } from 'viem';
 import { monadTestnet } from '@/lib/chain';
+import { isMockMode } from '@/lib/mock';
+
+const MOCK_TYPES = ['ENFP', 'INTJ', 'INFP', 'ENTJ', 'ISFJ', 'ENTP', 'INFJ', 'ISTP'] as const;
+const MOCK_DESCS: Record<string, string> = {
+  ENFP: 'A chaotic fox spirit who thrives on exploration and spontaneous adventures',
+  INTJ: 'A master strategist who sees ten moves ahead in every game',
+  INFP: 'A dreamy wanderer who sees beauty in the forgotten corners of the world',
+  ENTJ: 'A commanding presence who leads with vision and strategic brilliance',
+  ISFJ: 'A gentle guardian who protects the weak with quiet determination',
+  ENTP: 'A restless inventor who questions everything and fears nothing',
+  INFJ: 'A quiet oracle who speaks in riddles and reads the stars',
+  ISTP: 'A lone wolf engineer who builds wonders from scrap and silence',
+};
+const MOCK_TRAITS = [
+  { color: 'golden', expression: 'mischievous', accessory: 'star pendant' },
+  { color: 'obsidian', expression: 'calculating', accessory: 'rune book' },
+  { color: 'violet', expression: 'dreamy', accessory: 'moon circlet' },
+  { color: 'crimson', expression: 'fierce', accessory: 'war banner' },
+];
 
 const client = createPublicClient({
   chain: monadTestnet,
@@ -14,6 +33,22 @@ const client = createPublicClient({
 export async function POST(req: NextRequest) {
   try {
     const { address, identity } = await req.json();
+
+    // Mock mode
+    if (isMockMode()) {
+      const mbti = MOCK_TYPES[Math.floor(Math.random() * MOCK_TYPES.length)];
+      const traits = MOCK_TRAITS[Math.floor(Math.random() * MOCK_TRAITS.length)];
+      await new Promise((r) => setTimeout(r, 1500));
+      return NextResponse.json({
+        personality: MBTI_INDEX[mbti as MBTI],
+        personalityType: mbti,
+        personalityDesc: MOCK_DESCS[mbti] || 'A mysterious creature born from chaos',
+        traits,
+        tokenId: Math.floor(Math.random() * 9000) + 1000,
+        signature: '0x' + '0'.repeat(130),
+        nonce: 0,
+      });
+    }
 
     if (!address || typeof address !== 'string') {
       return NextResponse.json({ error: 'Address required' }, { status: 400 });

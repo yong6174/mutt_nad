@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db';
 import { checkPureblood } from '@/lib/bloodline';
+import { isMockMode } from '@/lib/mock';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,6 +13,15 @@ export async function POST(req: NextRequest) {
 
     if (score < 1 || score > 5 || !Number.isInteger(score)) {
       return NextResponse.json({ error: 'Score must be 1-5 integer' }, { status: 400 });
+    }
+
+    // Mock mode
+    if (isMockMode()) {
+      return NextResponse.json({
+        success: true,
+        newAvgRating: (Math.random() * 1.5 + 3.5),
+        totalReviews: Math.floor(Math.random() * 20) + 1,
+      });
     }
 
     const voterAddr = voter.toLowerCase();

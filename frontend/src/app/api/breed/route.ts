@@ -5,6 +5,7 @@ import { analyzeBreeding, mbtiGeneticFallback, randomMbti } from '@/lib/server/l
 import { MBTI_INDEX, type MBTI } from '@/types';
 import { createPublicClient, http } from 'viem';
 import { monadTestnet } from '@/lib/chain';
+import { isMockMode } from '@/lib/mock';
 
 const client = createPublicClient({
   chain: monadTestnet,
@@ -21,6 +22,21 @@ export async function POST(req: NextRequest) {
 
     if (parentA === parentB) {
       return NextResponse.json({ error: 'Cannot breed with self' }, { status: 400 });
+    }
+
+    // Mock mode
+    if (isMockMode()) {
+      const types = ['ENFP', 'INTJ', 'INFP', 'ENTJ', 'ISFJ', 'ENTP'] as const;
+      const mbti = types[Math.floor(Math.random() * types.length)];
+      await new Promise((r) => setTimeout(r, 1000));
+      return NextResponse.json({
+        personality: MBTI_INDEX[mbti as MBTI],
+        personalityType: mbti,
+        personalityDesc: 'Born from the union of two wandering souls',
+        traits: { color: 'silver', expression: 'curious', accessory: 'none' },
+        signature: '0x' + '0'.repeat(130),
+        nonce: 0,
+      });
     }
 
     const addr = address.toLowerCase() as `0x${string}`;

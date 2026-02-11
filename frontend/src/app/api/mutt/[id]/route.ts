@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db';
 import { createPublicClient, http } from 'viem';
 import { monadTestnet } from '@/lib/chain';
+import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
 
 const client = createPublicClient({
   chain: monadTestnet,
@@ -38,6 +39,29 @@ export async function GET(
 
     if (isNaN(tokenId) || tokenId <= 0) {
       return NextResponse.json({ error: 'Invalid token ID' }, { status: 400 });
+    }
+
+    // Mock mode
+    if (isMockMode()) {
+      const mutt = MOCK_MUTTS[tokenId];
+      if (!mutt) {
+        return NextResponse.json({ error: 'Mutt not found' }, { status: 404 });
+      }
+      return NextResponse.json({
+        tokenId: mutt.token_id,
+        personality: mutt.personality,
+        personalityDesc: mutt.personality_desc,
+        identity: mutt.identity,
+        bloodline: mutt.bloodline,
+        avgRating: mutt.avg_rating,
+        totalReviews: mutt.total_reviews,
+        traits: { color: mutt.color, expression: mutt.expression, accessory: mutt.accessory },
+        image: mutt.image,
+        parentA: mutt.parent_a,
+        parentB: mutt.parent_b,
+        breeder: mutt.breeder,
+        onChain: null,
+      });
     }
 
     // Fetch off-chain data

@@ -2,9 +2,8 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { useAccount } from 'wagmi';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 
-type HatchState = 'input' | 'summoning' | 'hatching' | 'result';
+type HatchState = 'input' | 'ready' | 'hatching' | 'result';
 
 interface HatchResult {
   personalityType: string;
@@ -14,16 +13,16 @@ interface HatchResult {
 }
 
 export default function HatchPage() {
-  const { address, isConnected } = useAccount();
+  const { address } = useAccount();
   const [identity, setIdentity] = useState('');
   const [state, setState] = useState<HatchState>('input');
   const [result, setResult] = useState<HatchResult | null>(null);
   const [error, setError] = useState('');
   const [showBurst, setShowBurst] = useState(false);
   const [cardVisible, setCardVisible] = useState(false);
-  const [eggImgError, setEggImgError] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const resultRef = useRef<HatchResult | null>(null);
 
   const showResultCard = useCallback(() => {
     setShowBurst(true);
@@ -33,92 +32,76 @@ export default function HatchPage() {
     }, 400);
   }, []);
 
+  // Step 1: Submit identity → API call → show paused video
   const handleHatch = async () => {
-    if (!address) return;
+    const walletAddr = address || '0x0000000000000000000000000000000000000000';
     setError('');
     setShowBurst(false);
     setCardVisible(false);
-    setState('summoning');
+    setState('ready');
 
-    let hatchResult: HatchResult | null = null;
-    let videoComplete = false;
-
-    const finalize = () => {
-      if (!hatchResult || !videoComplete) return;
-      setResult(hatchResult);
-      showResultCard();
-    };
-
-    // 2s: swap egg to video
-    const swapTimer = setTimeout(() => {
-      setState((prev) => (prev === 'summoning' ? 'hatching' : prev));
-      const video = videoRef.current;
-      if (video) {
-        video.onended = () => {
-          videoComplete = true;
-          finalize();
-        };
-        video.play().catch(() => {
-          videoComplete = true;
-          finalize();
-        });
-      } else {
-        videoComplete = true;
-        finalize();
-      }
-    }, 2000);
-
-    // 8s: fallback
-    const fallbackTimer = setTimeout(() => {
-      videoComplete = true;
-      finalize();
-    }, 8000);
-
-    // API call
     try {
       const res = await fetch('/api/hatch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, identity: identity.trim() }),
+        body: JSON.stringify({ address: walletAddr, identity: identity.trim() }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        clearTimeout(swapTimer);
-        clearTimeout(fallbackTimer);
         setError(data.error || 'Hatch failed');
         setState('input');
         return;
       }
 
-      hatchResult = {
+      resultRef.current = {
         personalityType: data.personalityType,
         personalityDesc: data.personalityDesc,
         traits: data.traits,
         tokenId: data.tokenId,
       };
-      finalize();
     } catch {
-      clearTimeout(swapTimer);
-      clearTimeout(fallbackTimer);
       setError('Network error');
       setState('input');
     }
   };
 
-  if (!isConnected) {
-    return (
-      <div className="max-w-xl mx-auto py-20 px-6 text-center">
-        <h1 className="font-display text-[32px] text-gold tracking-[3px] mb-2">Genesis Hatch</h1>
-        <p className="text-sm italic mb-8" style={{ color: '#6a5f4a' }}>
-          Connect your wallet to hatch your companion.
-        </p>
-        <div className="flex justify-center">
-          <ConnectButton />
-        </div>
-      </div>
-    );
-  }
+  // Step 2: User clicks paused video → play → result
+  const handlePlay = () => {
+    if (state !== 'ready') return;
+    setState('hatching');
+
+    const video = videoRef.current;
+    if (video) {
+      video.currentTime = 0;
+      video.onended = () => {
+        if (resultRef.current) {
+          setResult(resultRef.current);
+          showResultCard();
+        }
+      };
+      video.play().catch(() => {
+        if (resultRef.current) {
+          setResult(resultRef.current);
+          showResultCard();
+        }
+      });
+    } else {
+      // No video fallback
+      if (resultRef.current) {
+        setResult(resultRef.current);
+        showResultCard();
+      }
+    }
+
+    // 8s fallback
+    setTimeout(() => {
+      if (resultRef.current) {
+        setResult((prev) => prev ?? resultRef.current);
+        showResultCard();
+      }
+    }, 8000);
+  };
 
   return (
     <>
@@ -185,49 +168,48 @@ export default function HatchPage() {
         </div>
       </div>
 
-      {/* ===== STATE 2: Hatching (egg -> video) ===== */}
+      {/* ===== STATE 2: Ready (paused video) + Hatching (playing) ===== */}
       <div
         className={`flex-col items-center justify-center min-h-[70vh] px-6 py-10 ${
-          state === 'summoning' || state === 'hatching' ? 'flex' : 'hidden'
+          state === 'ready' || state === 'hatching' ? 'flex' : 'hidden'
         }`}
       >
-        <div className="w-[280px] h-[360px] flex items-center justify-center mb-6 relative">
-          {/* Egg */}
-          <div className={state === 'summoning' ? 'block' : 'hidden'}>
-            {!eggImgError ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src="/images/egg.webp"
-                alt="Egg"
-                className="max-w-full max-h-full object-contain"
-                style={{ animation: 'egg-float 3s ease-in-out infinite' }}
-                onError={() => setEggImgError(true)}
-              />
-            ) : (
-              <div className="text-8xl" style={{ animation: 'egg-float 3s ease-in-out infinite' }}>
-                {'\u{1F95A}'}
-              </div>
-            )}
-          </div>
-
-          {/* Video */}
+        <div
+          className="w-[280px] h-[360px] relative overflow-hidden rounded-2xl cursor-pointer mb-6"
+          onClick={handlePlay}
+        >
           <video
             ref={videoRef}
-            className={`max-w-full max-h-full object-contain ${
-              state === 'hatching' ? 'block' : 'hidden'
-            }`}
+            className="w-[280px] absolute top-0 left-0"
+            style={{ height: '105%' }}
             playsInline
             muted
+            preload="auto"
           >
             <source src="/videos/hatch.mp4" type="video/mp4" />
           </video>
+
+          {/* Tap overlay (only when paused/ready) */}
+          {state === 'ready' && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/30 transition-opacity">
+              <div className="text-center">
+                <div className="text-5xl mb-3">{'\u{1F95A}'}</div>
+                <p
+                  className="font-display text-sm tracking-[3px] uppercase"
+                  style={{ color: '#c8a84e', animation: 'pulse-hint 2s ease-in-out infinite' }}
+                >
+                  Tap to Hatch
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         <p
           className="font-display text-sm tracking-[3px] uppercase"
           style={{ color: '#6a5f4a', animation: 'pulse-text 1.5s ease-in-out infinite' }}
         >
-          {state === 'summoning' ? 'Summoning...' : 'Hatching...'}
+          {state === 'ready' ? 'Ready...' : 'Hatching...'}
         </p>
       </div>
 

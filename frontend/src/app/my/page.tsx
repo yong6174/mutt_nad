@@ -31,23 +31,11 @@ export default function MyPage() {
   const { address, isConnected } = useAccount();
   const [editingCost, setEditingCost] = useState<number | null>(null);
 
-  if (!isConnected) {
-    return (
-      <div className="max-w-xl mx-auto py-20 px-6 text-center">
-        <h1 className="text-3xl text-gold mb-4">My Collection</h1>
-        <p className="text-text-secondary mb-8">Connect your wallet to view your collection.</p>
-        <div className="flex justify-center">
-          <ConnectButton />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-4xl mx-auto py-10 px-6">
       <h1 className="text-3xl text-gold mb-2">My Collection</h1>
       <p className="text-sm text-text-secondary font-mono mb-8">
-        {address}
+        {address || '0x0000...0000 (Mock Mode)'}
       </p>
 
       {/* Stats */}

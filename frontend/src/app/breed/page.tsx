@@ -70,8 +70,16 @@ function BreedContent() {
     }
   }, [partnerId, fetchMutt]);
 
+  // Auto-load mock mutt for "Your Mutt" slot
+  useEffect(() => {
+    if (!myMutt) {
+      fetchMutt(42).then((m) => m && setMyMutt(m));
+    }
+  }, [fetchMutt, myMutt]);
+
   const handleBreed = async () => {
-    if (!address || !myMutt || !partner) return;
+    const walletAddr = address || '0x0000000000000000000000000000000000000000';
+    if (!myMutt || !partner) return;
     setLoading(true);
     setError('');
 
@@ -80,7 +88,7 @@ function BreedContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          address,
+          address: walletAddr,
           parentA: myMutt.tokenId,
           parentB: partner.tokenId,
         }),
@@ -112,18 +120,6 @@ function BreedContent() {
       setSearchResults(m ? [m] : []);
     }
   };
-
-  if (!isConnected) {
-    return (
-      <div className="max-w-xl mx-auto py-20 px-6 text-center">
-        <h1 className="text-4xl text-gold mb-4">Breeding Chamber</h1>
-        <p className="text-text-secondary mb-8">Connect your wallet to breed.</p>
-        <div className="flex justify-center">
-          <ConnectButton />
-        </div>
-      </div>
-    );
-  }
 
   if (result) {
     return (
