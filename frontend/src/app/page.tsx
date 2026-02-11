@@ -76,7 +76,7 @@ export default function LandingPage() {
         {/* Magic Circle + Text */}
         <div className="relative w-[400px] h-[400px] flex items-center justify-center">
           <div
-            className="absolute w-full h-full"
+            className="absolute w-full h-full overflow-hidden rounded-full"
             style={{
               mixBlendMode: 'lighten',
               animation:
