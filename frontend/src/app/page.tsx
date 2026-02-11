@@ -73,8 +73,26 @@ export default function LandingPage() {
           ))}
         </div>
 
-        {/* Magic Circle + Text */}
-        <div className="relative w-[400px] h-[400px] flex items-center justify-center">
+        {/* Text above circle */}
+        <div className="text-center pointer-events-none mb-8">
+          <h1
+            className="font-display text-[42px] text-gold tracking-[6px] leading-tight mb-4 font-semibold"
+            style={{ textShadow: '0 0 40px rgba(200,168,78,0.4)' }}
+          >
+            Hatch. Breed.
+            <br />
+            Chaos.
+          </h1>
+          <p
+            className="font-display text-xs tracking-[4px] uppercase"
+            style={{ color: '#6a5f4a', animation: 'pulse-hint 2s ease-in-out infinite' }}
+          >
+            tap to enter
+          </p>
+        </div>
+
+        {/* Magic Circle */}
+        <div className="relative w-[400px] h-[400px]">
           <div
             className="absolute w-full h-full overflow-hidden rounded-full"
             style={{
@@ -97,23 +115,6 @@ export default function LandingPage() {
             ) : (
               <MagicCircleSVG />
             )}
-          </div>
-
-          <div className="relative z-10 text-center pointer-events-none">
-            <h1
-              className="font-display text-[42px] text-gold tracking-[6px] leading-tight mb-4"
-              style={{ textShadow: '0 0 40px rgba(200,168,78,0.4)' }}
-            >
-              Hatch. Breed.
-              <br />
-              Chaos.
-            </h1>
-            <p
-              className="font-display text-xs tracking-[4px] uppercase"
-              style={{ color: '#3a3028', animation: 'pulse-hint 2s ease-in-out infinite' }}
-            >
-              tap to enter
-            </p>
           </div>
         </div>
       </div>
