@@ -67,19 +67,21 @@ export default function FamilyTreePage() {
     load();
   }, [params.id]);
 
-  if (loading) return <div className="text-center py-20 text-text-secondary">Loading...</div>;
-  if (!current) return <div className="text-center py-20 text-text-secondary">Mutt not found</div>;
+  if (loading) return <div className="text-center py-20 font-display" style={{ color: '#6a5f4a' }}>Loading...</div>;
+  if (!current) return <div className="text-center py-20 font-display" style={{ color: '#6a5f4a' }}>Mutt not found</div>;
 
   return (
     <div className="max-w-4xl mx-auto py-10 px-6">
-      <h1 className="text-center text-3xl text-gold mb-2">Family Tree</h1>
-      <p className="text-center text-sm text-text-secondary mb-12">
-        Mutt #{String(current.tokenId).padStart(4, '0')} — 3 Generations
+      <h1 className="text-center font-display text-[32px] text-gold tracking-[3px] mb-2">Family Tree</h1>
+      <p className="text-center text-sm italic mb-12" style={{ color: '#6a5f4a' }}>
+        Mutt #{String(current.tokenId).padStart(4, '0')} &mdash; 3 Generations
       </p>
 
       <div className="flex flex-col items-center gap-2">
         {/* Grandparents */}
-        <p className="text-[10px] text-text-muted tracking-widest uppercase mb-2">Grandparents</p>
+        <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#3a3028' }}>
+          Grandparents
+        </p>
         <div className="flex gap-6 justify-center">
           {grandparents.map((gp, i) => (
             <NodeCard key={i} node={gp} />
@@ -89,7 +91,9 @@ export default function FamilyTreePage() {
         <Connector />
 
         {/* Parents */}
-        <p className="text-[10px] text-text-muted tracking-widest uppercase mb-2">Parents</p>
+        <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#3a3028' }}>
+          Parents
+        </p>
         <div className="flex gap-28 justify-center">
           {parents.map((p, i) => (
             <NodeCard key={i} node={p} />
@@ -99,21 +103,26 @@ export default function FamilyTreePage() {
         <Connector />
 
         {/* Current */}
-        <p className="text-[10px] text-text-muted tracking-widest uppercase mb-2">Current</p>
+        <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#3a3028' }}>
+          Current
+        </p>
         <NodeCard node={current} highlight />
       </div>
 
       {/* Pureblood route info */}
-      {current.bloodline === 'pureblood' || current.bloodline === 'sacred28' ? (
-        <div className="mt-8 p-4 border border-gold bg-[#12110a] text-center">
-          <p className="text-[11px] text-gold tracking-widest uppercase mb-2">Pureblood Route</p>
-          <p className="text-sm text-text-primary">
+      {(current.bloodline === 'pureblood' || current.bloodline === 'sacred28') && (
+        <div
+          className="mt-8 p-4 text-center"
+          style={{ border: '1px solid rgba(200,168,78,0.3)', background: 'rgba(18,17,10,0.8)' }}
+        >
+          <p className="font-display text-[11px] text-gold tracking-[2px] uppercase mb-2">Pureblood Route</p>
+          <p className="text-sm" style={{ color: '#d4c5a0' }}>
             #{String(current.tokenId).padStart(4, '0')}
-            {parents[0] && ` → #${String(parents[0].tokenId).padStart(4, '0')}`}
-            {grandparents[0] && ` → #${String(grandparents[0].tokenId).padStart(4, '0')}`}
+            {parents[0] && ` \u2192 #${String(parents[0].tokenId).padStart(4, '0')}`}
+            {grandparents[0] && ` \u2192 #${String(grandparents[0].tokenId).padStart(4, '0')}`}
           </p>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -121,9 +130,12 @@ export default function FamilyTreePage() {
 function NodeCard({ node, highlight }: { node: TreeNode | null; highlight?: boolean }) {
   if (!node) {
     return (
-      <div className="w-36 p-3 border border-border-primary bg-bg-secondary text-center opacity-30">
-        <p className="text-3xl mb-1">🥚</p>
-        <p className="text-[11px] text-text-muted">Genesis</p>
+      <div
+        className="w-36 p-3 text-center opacity-30"
+        style={{ border: '1px solid rgba(200,168,78,0.1)', background: 'rgba(12,11,8,0.6)' }}
+      >
+        <p className="text-3xl mb-1">{'\u{1F95A}'}</p>
+        <p className="font-display text-[11px]" style={{ color: '#3a3028' }}>Genesis</p>
       </div>
     );
   }
@@ -133,15 +145,26 @@ function NodeCard({ node, highlight }: { node: TreeNode | null; highlight?: bool
   return (
     <Link
       href={`/mutt/${node.tokenId}`}
-      className={`w-36 p-3 border-2 bg-bg-secondary text-center relative transition-colors hover:border-gold ${
-        highlight ? 'border-gold shadow-[0_0_20px_rgba(200,168,78,0.15)]' : isPure ? 'border-gold' : 'border-border-primary'
-      }`}
+      className="w-36 p-3 text-center relative transition-colors hover:border-gold"
+      style={{
+        border: highlight
+          ? '2px solid #c8a84e'
+          : isPure
+            ? '2px solid rgba(200,168,78,0.5)'
+            : '1px solid rgba(200,168,78,0.12)',
+        background: 'linear-gradient(135deg, #1a1610 0%, #12100c 100%)',
+        boxShadow: highlight ? '0 0 20px rgba(200,168,78,0.15)' : 'none',
+      }}
     >
-      {isPure && <span className="absolute -top-2 -right-2 text-sm">👑</span>}
+      {isPure && <span className="absolute -top-2 -right-2 text-sm">{'\u{1F451}'}</span>}
       <div className="text-3xl mb-1 opacity-50">?</div>
-      <p className="text-[11px] text-text-primary">Mutt #{String(node.tokenId).padStart(4, '0')}</p>
-      <p className="text-[10px] text-gold tracking-wide">{node.personality}</p>
-      <p className="text-[10px] text-text-secondary mt-1">★ {node.avgRating.toFixed(1)} ({node.totalReviews})</p>
+      <p className="font-display text-[11px] tracking-[1px]" style={{ color: '#d4c5a0' }}>
+        Mutt #{String(node.tokenId).padStart(4, '0')}
+      </p>
+      <p className="text-[10px] text-gold tracking-[1px]">{node.personality}</p>
+      <p className="text-[10px] mt-1" style={{ color: '#6a5f4a' }}>
+        {'\u2605'} {node.avgRating.toFixed(1)} ({node.totalReviews})
+      </p>
     </Link>
   );
 }
@@ -149,7 +172,7 @@ function NodeCard({ node, highlight }: { node: TreeNode | null; highlight?: bool
 function Connector() {
   return (
     <div className="flex justify-center py-3">
-      <div className="w-0.5 h-8 bg-border-primary" />
+      <div className="w-0.5 h-8" style={{ background: 'rgba(200,168,78,0.15)' }} />
     </div>
   );
 }

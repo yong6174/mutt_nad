@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAccount } from 'wagmi';
 import { useSearchParams } from 'next/navigation';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import Link from 'next/link';
 import type { BloodlineGrade } from '@/types';
 
 interface MuttSlot {
@@ -23,14 +23,14 @@ const BLOODLINE_LABEL: Record<BloodlineGrade, string> = {
 
 export default function BreedPage() {
   return (
-    <Suspense fallback={<div className="text-center py-20 text-text-secondary">Loading...</div>}>
+    <Suspense fallback={<div className="text-center py-20 text-text-secondary font-display">Loading...</div>}>
       <BreedContent />
     </Suspense>
   );
 }
 
 function BreedContent() {
-  const { address, isConnected } = useAccount();
+  const { address } = useAccount();
   const searchParams = useSearchParams();
   const partnerId = searchParams.get('partner');
 
@@ -63,14 +63,12 @@ function BreedContent() {
     }
   }, []);
 
-  // Load partner from URL param
   useEffect(() => {
     if (partnerId) {
       fetchMutt(parseInt(partnerId)).then((m) => m && setPartner(m));
     }
   }, [partnerId, fetchMutt]);
 
-  // Auto-load mock mutt for "Your Mutt" slot
   useEffect(() => {
     if (!myMutt) {
       fetchMutt(42).then((m) => m && setMyMutt(m));
@@ -124,16 +122,44 @@ function BreedContent() {
   if (result) {
     return (
       <div className="max-w-2xl mx-auto py-16 px-6">
-        <div className="text-center p-10 border-2 border-gold bg-bg-secondary">
-          <h2 className="text-2xl text-gold mb-6">A New Mutt is Born!</h2>
-          <div className="text-7xl mb-4">🐣</div>
-          <p className="text-xl text-text-primary mb-1">{result.personalityType}</p>
-          <p className="text-sm text-text-secondary italic">&quot;{result.personalityDesc}&quot;</p>
-          <div className="flex gap-3 justify-center mt-4">
-            <span className="px-3 py-1 border border-border-secondary text-xs text-gold-dim">{result.traits.color}</span>
-            <span className="px-3 py-1 border border-border-secondary text-xs text-gold-dim">{result.traits.expression}</span>
-            <span className="px-3 py-1 border border-border-secondary text-xs text-gold-dim">{result.traits.accessory}</span>
+        <div
+          className="text-center relative"
+          style={{
+            padding: '48px 32px',
+            border: '3px solid #c8a84e',
+            background: 'linear-gradient(135deg, #1a1610 0%, #12100c 50%, #0e0c08 100%)',
+            boxShadow: '0 0 60px rgba(200,168,78,0.15)',
+          }}
+        >
+          <div
+            className="absolute pointer-events-none"
+            style={{ inset: '6px', border: '1px solid rgba(200,168,78,0.15)' }}
+          />
+          <h2 className="font-display text-2xl text-gold tracking-[3px] mb-6">A New Mutt is Born!</h2>
+          <div className="text-7xl mb-4">{'\u{1F423}'}</div>
+          <p className="font-display text-xl tracking-[2px] mb-1" style={{ color: '#d4c5a0' }}>
+            {result.personalityType}
+          </p>
+          <p className="text-sm italic mb-5" style={{ color: '#6a5f4a' }}>
+            &ldquo;{result.personalityDesc}&rdquo;
+          </p>
+          <div className="flex gap-2 justify-center">
+            {Object.values(result.traits).map((t) => (
+              <span
+                key={t}
+                className="px-3 py-1 text-[11px]"
+                style={{ border: '1px solid rgba(200,168,78,0.2)', color: '#8a7d65' }}
+              >
+                {t}
+              </span>
+            ))}
           </div>
+          <Link
+            href="/my"
+            className="inline-block mt-8 px-8 py-3 border border-gold text-gold font-display text-sm tracking-[2px] uppercase hover:bg-gold hover:text-[#06060a] transition-colors"
+          >
+            View Collection
+          </Link>
         </div>
       </div>
     );
@@ -141,60 +167,78 @@ function BreedContent() {
 
   return (
     <div className="max-w-5xl mx-auto py-10 px-6">
-      <h1 className="text-center text-3xl text-gold mb-2">Breeding Chamber</h1>
-      <p className="text-center text-sm text-text-secondary mb-12">
+      <h1 className="text-center font-display text-[32px] text-gold tracking-[3px] mb-2">
+        Breeding Chamber
+      </h1>
+      <p className="text-center text-sm italic mb-12" style={{ color: '#6a5f4a' }}>
         Combine two identities. Create something new.
       </p>
 
       {/* Arena */}
       <div className="grid grid-cols-[1fr_auto_1fr] gap-6 items-start">
-        {/* My Mutt */}
         <SlotCard label="Your Mutt" mutt={myMutt} onClear={() => setMyMutt(null)} />
 
         {/* Center */}
         <div className="flex flex-col items-center gap-6 py-10">
-          <span className="text-5xl text-gold">×</span>
+          <span className="font-display text-4xl text-gold">{'\u00D7'}</span>
 
           {myMutt && partner && (
-            <div className="p-4 border border-border-primary bg-bg-secondary text-center min-w-40">
-              <p className="text-[10px] text-text-secondary tracking-widest uppercase mb-2">Predicted Offspring</p>
-              <p className="text-sm text-text-primary">AI Analyzed</p>
-              <p className="text-[11px] text-text-secondary mt-1">+ 10% mutation chance</p>
+            <div
+              className="p-4 text-center min-w-40"
+              style={{ border: '1px solid rgba(200,168,78,0.15)', background: 'rgba(12,11,8,0.8)' }}
+            >
+              <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#6a5f4a' }}>
+                Predicted Offspring
+              </p>
+              <p className="text-sm" style={{ color: '#d4c5a0' }}>AI Analyzed</p>
+              <p className="text-[11px] mt-1" style={{ color: '#3a3028' }}>+ 10% mutation chance</p>
             </div>
           )}
 
           {partner?.breedCost && (
-            <div className="p-3 border border-border-primary text-center">
-              <p className="text-[10px] text-text-secondary tracking-wide">Breed Cost</p>
+            <div className="p-3 text-center" style={{ border: '1px solid rgba(200,168,78,0.15)' }}>
+              <p className="font-display text-[10px] tracking-[2px] uppercase" style={{ color: '#6a5f4a' }}>
+                Breed Cost
+              </p>
               <p className="text-lg text-gold mt-1">
                 {(Number(partner.breedCost) / 1e18).toFixed(4)} MON
               </p>
-              <p className="text-[10px] text-text-muted mt-0.5">incl. 10% platform fee</p>
+              <p className="text-[10px] mt-0.5" style={{ color: '#3a3028' }}>incl. 10% platform fee</p>
             </div>
           )}
 
           <button
             onClick={handleBreed}
             disabled={!myMutt || !partner || loading}
-            className="px-12 py-4 bg-gold text-bg-primary font-bold tracking-widest uppercase disabled:opacity-30"
+            className="px-12 py-4 border-2 border-gold text-gold font-display font-semibold tracking-[3px] uppercase disabled:opacity-30 relative overflow-hidden group bg-transparent"
             style={{ boxShadow: myMutt && partner ? '0 0 30px rgba(200,168,78,0.3)' : 'none' }}
           >
-            {loading ? 'Breeding...' : 'BREED'}
+            <span className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-[400ms] z-0" />
+            <span className="relative z-10 group-hover:text-[#06060a] transition-colors duration-[400ms]">
+              {loading ? 'Breeding...' : '\u2726 BREED \u2726'}
+            </span>
           </button>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
 
-        {/* Partner */}
         <SlotCard label="Partner Mutt" mutt={partner} onClear={() => setPartner(null)} />
       </div>
 
       {/* Search */}
-      <div className="mt-10 p-6 border border-border-primary bg-bg-secondary">
-        <h3 className="text-xs text-gold tracking-widest uppercase mb-4">Find a Partner</h3>
+      <div
+        className="mt-10 p-6"
+        style={{ border: '1px solid rgba(200,168,78,0.15)', background: 'rgba(12,11,8,0.8)' }}
+      >
+        <h3 className="font-display text-xs text-gold tracking-[2px] uppercase mb-4">Find a Partner</h3>
         <div className="flex gap-3 mb-4">
           <input
-            className="flex-1 px-4 py-2.5 bg-bg-primary border border-border-primary text-text-primary text-sm focus:outline-none focus:border-gold placeholder:text-text-muted"
+            className="flex-1 px-4 py-2.5 text-sm focus:outline-none placeholder:text-text-muted"
+            style={{
+              background: 'rgba(6,6,10,0.8)',
+              border: '1px solid rgba(200,168,78,0.15)',
+              color: '#d4c5a0',
+            }}
             placeholder="Search by token ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -202,7 +246,7 @@ function BreedContent() {
           />
           <button
             onClick={handleSearch}
-            className="px-6 py-2.5 border border-gold text-gold text-sm"
+            className="px-6 py-2.5 border border-gold text-gold font-display text-sm tracking-[1px] hover:bg-gold hover:text-[#06060a] transition-colors"
           >
             Search
           </button>
@@ -214,12 +258,15 @@ function BreedContent() {
               <button
                 key={m.tokenId}
                 onClick={() => setPartner(m)}
-                className="p-3 border border-border-primary text-center hover:border-gold transition-colors"
+                className="p-3 text-center transition-colors hover:border-gold"
+                style={{ border: '1px solid rgba(200,168,78,0.12)', background: 'rgba(6,6,10,0.6)' }}
               >
                 <div className="text-3xl mb-2 opacity-50">?</div>
-                <p className="text-xs text-text-primary">Mutt #{String(m.tokenId).padStart(4, '0')}</p>
-                <p className="text-[11px] text-gold">{m.personality}</p>
-                <p className="text-[10px] text-text-secondary mt-1">
+                <p className="font-display text-xs tracking-[1px]" style={{ color: '#d4c5a0' }}>
+                  Mutt #{String(m.tokenId).padStart(4, '0')}
+                </p>
+                <p className="text-[11px] text-gold tracking-[1px]">{m.personality}</p>
+                <p className="text-[10px] mt-1" style={{ color: '#6a5f4a' }}>
                   {m.breedCost ? `${(Number(m.breedCost) / 1e18).toFixed(4)} MON` : 'Free'}
                 </p>
               </button>
@@ -241,22 +288,37 @@ function SlotCard({
   onClear: () => void;
 }) {
   return (
-    <div className={`border-2 bg-bg-secondary p-6 text-center min-h-[360px] flex flex-col items-center justify-center ${mutt ? 'border-gold' : 'border-border-primary'}`}>
-      <p className="text-[11px] text-text-secondary tracking-widest uppercase mb-4">{label}</p>
+    <div
+      className="p-6 text-center min-h-[360px] flex flex-col items-center justify-center"
+      style={{
+        border: mutt ? '2px solid #c8a84e' : '2px solid rgba(200,168,78,0.15)',
+        background: 'linear-gradient(135deg, #1a1610 0%, #12100c 50%, #0e0c08 100%)',
+        boxShadow: mutt ? '0 0 30px rgba(200,168,78,0.08)' : 'none',
+      }}
+    >
+      <p className="font-display text-[11px] tracking-[2px] uppercase mb-4" style={{ color: '#6a5f4a' }}>
+        {label}
+      </p>
       {mutt ? (
         <>
           <div className="text-6xl mb-3 opacity-50">?</div>
-          <p className="text-lg text-text-primary mb-1">Mutt #{String(mutt.tokenId).padStart(4, '0')}</p>
-          <p className="text-sm text-gold tracking-wide mb-2">{mutt.personality}</p>
-          <p className="text-[11px] text-text-secondary">{BLOODLINE_LABEL[mutt.bloodline]}</p>
-          <button onClick={onClear} className="mt-3 px-4 py-1.5 border border-border-secondary text-text-secondary text-[11px]">
+          <p className="font-display text-lg tracking-[1px] mb-1" style={{ color: '#d4c5a0' }}>
+            Mutt #{String(mutt.tokenId).padStart(4, '0')}
+          </p>
+          <p className="text-sm text-gold tracking-[2px] mb-2">{mutt.personality}</p>
+          <p className="text-[11px]" style={{ color: '#6a5f4a' }}>{BLOODLINE_LABEL[mutt.bloodline]}</p>
+          <button
+            onClick={(e) => { e.stopPropagation(); onClear(); }}
+            className="mt-3 px-4 py-1.5 text-[11px] transition-colors hover:border-gold"
+            style={{ border: '1px solid rgba(200,168,78,0.15)', color: '#6a5f4a' }}
+          >
             Change
           </button>
         </>
       ) : (
         <>
-          <div className="text-5xl text-border-primary mb-4">+</div>
-          <p className="text-sm text-text-muted">Select a Mutt</p>
+          <div className="text-5xl mb-4" style={{ color: 'rgba(200,168,78,0.15)' }}>+</div>
+          <p className="text-sm" style={{ color: '#3a3028' }}>Select a Mutt</p>
         </>
       )}
     </div>
