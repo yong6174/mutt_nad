@@ -109,8 +109,16 @@ function BreedContent() {
     if (txError) {
       setError(txError.message.slice(0, 100));
       setLoading(false);
+      // Clean up pending action on tx reject
+      if (address) {
+        fetch('/api/pending/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address }),
+        }).catch(() => {});
+      }
     }
-  }, [txError]);
+  }, [txError, address]);
 
   // After approve tx succeeds, refetch allowance
   useEffect(() => {
@@ -258,14 +266,14 @@ function BreedContent() {
 
           {myMutt && partner && (
             <div
-              className="p-4 text-center min-w-40"
+              className="p-4 text-center min-w-48"
               style={{ border: '1px solid rgba(200,168,78,0.15)', background: 'rgba(12,11,8,0.8)' }}
             >
-              <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#6a5f4a' }}>
+              <p className="font-display text-[10px] tracking-[2px] uppercase mb-3" style={{ color: '#6a5f4a' }}>
                 Predicted Offspring
               </p>
-              <p className="text-sm" style={{ color: '#d4c5a0' }}>AI Analyzed</p>
-              <p className="text-[11px] mt-1" style={{ color: '#3a3028' }}>+ 10% mutation chance</p>
+              <MbtiPreview parentA={myMutt.personality} parentB={partner.personality} />
+              <p className="text-[10px] mt-2" style={{ color: '#3a3028' }}>+ 10% mutation chance</p>
             </div>
           )}
 
@@ -356,7 +364,7 @@ function BreedContent() {
 
         {searchResults.length > 0 && (
           <div className="grid grid-cols-4 gap-3">
-            {searchResults.map((m) => (
+            {searchResults.filter((m) => m.tokenId !== myMutt?.tokenId).map((m) => (
               <button
                 key={m.tokenId}
                 onClick={() => setPartner(m)}
@@ -423,6 +431,38 @@ function SlotCard({
           <p className="text-sm" style={{ color: '#3a3028' }}>Select a Mutt</p>
         </>
       )}
+    </div>
+  );
+}
+
+const MBTI_AXES = [
+  { idx: 0, a: 'E', b: 'I' },
+  { idx: 1, a: 'S', b: 'N' },
+  { idx: 2, a: 'T', b: 'F' },
+  { idx: 3, a: 'J', b: 'P' },
+] as const;
+
+function MbtiPreview({ parentA, parentB }: { parentA: string; parentB: string }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {MBTI_AXES.map(({ idx, a, b }) => {
+        const pa = parentA[idx]?.toUpperCase();
+        const pb = parentB[idx]?.toUpperCase();
+        const pctA = pa === pb ? (pa === a ? 90 : 10) : 50;
+        return (
+          <div key={a} className="flex items-center gap-1.5 text-[10px]">
+            <span className="w-3 text-right font-mono" style={{ color: pctA >= 50 ? '#c8a84e' : '#3a3028' }}>{a}</span>
+            <div className="flex-1 h-1.5 relative" style={{ background: 'rgba(200,168,78,0.1)' }}>
+              <div
+                className="absolute left-0 top-0 h-full"
+                style={{ width: `${pctA}%`, background: '#c8a84e', opacity: 0.6 }}
+              />
+            </div>
+            <span className="w-3 font-mono" style={{ color: pctA < 50 ? '#c8a84e' : '#3a3028' }}>{b}</span>
+            <span className="w-8 text-right font-mono" style={{ color: '#6a5f4a' }}>{pctA}%</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

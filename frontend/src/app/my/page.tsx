@@ -17,6 +17,7 @@ interface MyMutt {
   bloodline: BloodlineGrade;
   avgRating: number;
   breedCost: string;
+  isBreeder: boolean;
 }
 
 interface Activity {
@@ -65,6 +66,7 @@ export default function MyPage() {
             bloodline: m.bloodline as BloodlineGrade,
             avgRating: m.avg_rating,
             breedCost: '0',
+            isBreeder: true,
           })),
         );
         setActivities([
@@ -75,12 +77,13 @@ export default function MyPage() {
         return;
       }
 
-      const [muttsRes, activitiesRes] = await Promise.all([
+      const [holdingsRes, activitiesRes] = await Promise.all([
         supabase
-          .from('mutts')
-          .select('token_id, personality, bloodline, avg_rating')
-          .eq('breeder', addr)
-          .order('token_id', { ascending: false }),
+          .from('holdings')
+          .select('token_id, balance')
+          .eq('address', addr)
+          .gt('balance', 0)
+          .order('updated_at', { ascending: false }),
         supabase
           .from('activities')
           .select('*')
@@ -89,16 +92,25 @@ export default function MyPage() {
           .limit(10),
       ]);
 
-      if (muttsRes.data) {
-        setMutts(
-          muttsRes.data.map((m) => ({
-            tokenId: m.token_id,
-            personality: m.personality,
-            bloodline: m.bloodline as BloodlineGrade,
-            avgRating: Number(m.avg_rating),
-            breedCost: '0',
-          })),
-        );
+      if (holdingsRes.data && holdingsRes.data.length > 0) {
+        const tokenIds = holdingsRes.data.map((h) => h.token_id);
+        const { data: muttsData } = await supabase
+          .from('mutts')
+          .select('token_id, personality, bloodline, avg_rating, breeder')
+          .in('token_id', tokenIds);
+
+        if (muttsData) {
+          setMutts(
+            muttsData.map((m) => ({
+              tokenId: m.token_id,
+              personality: m.personality,
+              bloodline: m.bloodline as BloodlineGrade,
+              avgRating: Number(m.avg_rating),
+              breedCost: '0',
+              isBreeder: m.breeder === addr,
+            })),
+          );
+        }
       }
 
       if (activitiesRes.data) {
@@ -256,8 +268,8 @@ function MuttCard({ mutt }: { mutt: MyMutt }) {
         <span style={{ color: '#8a7d65' }}>{'\u2605'} {mutt.avgRating.toFixed(1)}</span>
       </div>
 
-      {/* Breed cost row */}
-      <div
+      {/* Breed cost row (breeder only) */}
+      {mutt.isBreeder && <div
         className="flex items-center justify-between mt-2 pt-2"
         style={{ borderTop: '1px solid rgba(200,168,78,0.06)' }}
         onClick={(e) => e.stopPropagation()}
@@ -310,10 +322,10 @@ function MuttCard({ mutt }: { mutt: MyMutt }) {
             </button>
           </>
         )}
-      </div>
+      </div>}
 
-      {/* Mint config row */}
-      <div
+      {/* Mint config row (breeder only) */}
+      {mutt.isBreeder && <div
         className="flex items-center justify-between mt-1 pt-1"
         style={{ borderTop: '1px solid rgba(200,168,78,0.04)' }}
         onClick={(e) => e.stopPropagation()}
@@ -375,7 +387,7 @@ function MuttCard({ mutt }: { mutt: MyMutt }) {
             </button>
           </>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

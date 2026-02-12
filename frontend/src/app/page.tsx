@@ -6,11 +6,24 @@ import { supabase } from '@/lib/db';
 import { isMockMode } from '@/lib/mock';
 
 const MOCK_FEED = [
-  { tokenId: 42, emoji: '\u{1F415}', personality: 'ENFP', bloodline: 'Mutt', icon: '\u{1F415}' },
-  { tokenId: 41, emoji: '\u{1F43A}', personality: 'ISTJ', bloodline: 'Halfblood', icon: '\u{1FA78}' },
-  { tokenId: 40, emoji: '\u{1F98A}', personality: 'INFP', bloodline: 'Pureblood', icon: '\u{1F451}' },
-  { tokenId: 39, emoji: '\u{1F989}', personality: 'ENTJ', bloodline: 'Mutt', icon: '\u{1F415}' },
+  { tokenId: 42, personality: 'ENFP', bloodline: 'Mutt' },
+  { tokenId: 41, personality: 'ISTJ', bloodline: 'Halfblood' },
+  { tokenId: 40, personality: 'INFP', bloodline: 'Pureblood' },
+  { tokenId: 39, personality: 'ENTJ', bloodline: 'Mutt' },
 ];
+
+const BLOODLINE_ICON: Record<string, string> = {
+  mutt: '\u{1F415}',
+  halfblood: '\u{1FA78}',
+  pureblood: '\u{1F451}',
+  sacred28: '\u{1F31F}',
+};
+
+interface FeedItem {
+  tokenId: number;
+  personality: string;
+  bloodline: string;
+}
 
 type Scene = 'magic' | 'accelerating' | 'letter';
 
@@ -23,6 +36,7 @@ export default function LandingPage() {
     Array<{ id: number; left: string; dur: string; delay: string; size: string }>
   >([]);
   const [stats, setStats] = useState({ total: 0, purebloods: 0, sacred: 0 });
+  const [feed, setFeed] = useState<FeedItem[]>([]);
 
   useEffect(() => {
     setParticles(
@@ -35,19 +49,23 @@ export default function LandingPage() {
       }))
     );
 
-    // Fetch real stats
+    // Fetch real stats + recent feed
     if (!isMockMode()) {
       (async () => {
-        const [totalRes, pureRes, sacredRes] = await Promise.all([
+        const [totalRes, pureRes, sacredRes, feedRes] = await Promise.all([
           supabase.from('mutts').select('token_id', { count: 'exact', head: true }),
           supabase.from('mutts').select('token_id', { count: 'exact', head: true }).eq('bloodline', 'pureblood'),
           supabase.from('mutts').select('token_id', { count: 'exact', head: true }).eq('bloodline', 'sacred28'),
+          supabase.from('mutts').select('token_id, personality, bloodline').order('created_at', { ascending: false }).limit(8),
         ]);
         setStats({
           total: totalRes.count ?? 0,
           purebloods: pureRes.count ?? 0,
           sacred: sacredRes.count ?? 0,
         });
+        if (feedRes.data && feedRes.data.length > 0) {
+          setFeed(feedRes.data.map((m) => ({ tokenId: m.token_id, personality: m.personality, bloodline: m.bloodline })));
+        }
       })();
     }
   }, []);
@@ -270,7 +288,7 @@ export default function LandingPage() {
             <div className="w-[60px] h-px mx-auto mt-4" style={{ background: 'rgba(200,168,78,0.3)' }} />
           </div>
           <div className="flex justify-center gap-5 flex-wrap max-w-[900px] mx-auto">
-            {MOCK_FEED.map((m) => (
+            {(feed.length > 0 ? feed : MOCK_FEED).map((m) => (
               <Link
                 key={m.tokenId}
                 href={`/mutt/${m.tokenId}`}
@@ -287,7 +305,7 @@ export default function LandingPage() {
                     border: '1px solid rgba(200,168,78,0.1)',
                   }}
                 >
-                  {m.emoji}
+                  {BLOODLINE_ICON[m.bloodline] || '\u{1F415}'}
                 </div>
                 <p className="font-display text-[13px] text-text-primary tracking-[1px] mb-1">
                   Mutt #{String(m.tokenId).padStart(4, '0')}
@@ -297,7 +315,7 @@ export default function LandingPage() {
                   className="inline-block mt-2.5 px-2.5 py-[3px] text-[10px] tracking-[1px] uppercase"
                   style={{ border: '1px solid rgba(200,168,78,0.15)', color: '#6a5f4a' }}
                 >
-                  {m.icon} {m.bloodline}
+                  {BLOODLINE_ICON[m.bloodline] || '\u{1F415}'} {m.bloodline}
                 </span>
               </Link>
             ))}

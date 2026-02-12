@@ -82,8 +82,16 @@ export default function HatchPage() {
     if (txError) {
       setError(txError.message.slice(0, 100));
       setState('input');
+      // Clean up pending action on tx reject
+      if (address) {
+        fetch('/api/pending/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address }),
+        }).catch(() => {});
+      }
     }
-  }, [txError]);
+  }, [txError, address]);
 
   // Submit identity → API call → submit tx immediately
   const handleHatch = async () => {
@@ -213,6 +221,13 @@ export default function HatchPage() {
           state === 'signing' || state === 'confirming' || state === 'syncing' || (txPending || isConfirming || syncing) ? 'flex' : 'hidden'
         }`}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/egg.webp"
+          alt="Egg"
+          className="w-32 h-32 mb-6 object-contain"
+          style={{ animation: 'egg-float 2.5s ease-in-out infinite' }}
+        />
         <p className="font-display text-xl tracking-[6px] uppercase mb-4" style={{ color: '#c8a84e' }}>
           {txPending ? 'Confirm in Wallet...' : syncing || state === 'syncing' ? 'Syncing...' : 'Confirming Transaction...'}
         </p>

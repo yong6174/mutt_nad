@@ -104,6 +104,23 @@ export async function GET(
       // Contract not deployed or token doesn't exist on-chain
     }
 
+    // Check if viewer has rated this mutt
+    let hasRated = false;
+    let myRating: number | null = null;
+    const viewer = req.nextUrl.searchParams.get('viewer');
+    if (viewer) {
+      const { data: existingRating } = await supabaseAdmin
+        .from('ratings')
+        .select('score')
+        .eq('token_id', tokenId)
+        .eq('voter', viewer.toLowerCase())
+        .maybeSingle();
+      if (existingRating) {
+        hasRated = true;
+        myRating = existingRating.score;
+      }
+    }
+
     return NextResponse.json({
       tokenId: mutt.token_id,
       personality: mutt.personality,
@@ -122,6 +139,8 @@ export async function GET(
       parentB: mutt.parent_b,
       breeder: mutt.breeder,
       onChain,
+      hasRated,
+      myRating,
     });
   } catch (err) {
     console.error('Mutt fetch error:', err);

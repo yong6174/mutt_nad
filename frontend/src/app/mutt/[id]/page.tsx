@@ -9,7 +9,7 @@ import { StarRating } from '@/components/rating/StarRating';
 import { useSetBreedCost } from '@/hooks/useSetBreedCost';
 import { useMint } from '@/hooks/useMint';
 import { useSync } from '@/hooks/useSync';
-import { useApproveBreedToken, useBreedTokenAllowance } from '@/hooks/useBreed';
+import { useApproveBreedToken, useBreedTokenAllowance, useBreedTokenBalance } from '@/hooks/useBreed';
 import type { BloodlineGrade } from '@/types';
 
 interface MuttData {
@@ -24,6 +24,8 @@ interface MuttData {
   parentA: number;
   parentB: number;
   breeder: string;
+  hasRated?: boolean;
+  myRating?: number | null;
   onChain?: {
     breedCost: string;
     lastBreedTime: number;
@@ -53,6 +55,7 @@ export default function MuttProfilePage() {
   const { sync, syncing, synced: mintSynced } = useSync();
   const { approve, isPending: approvePending, isSuccess: approveSuccess } = useApproveBreedToken();
   const { data: allowance, refetch: refetchAllowance } = useBreedTokenAllowance(address);
+  const { data: tokenBalance } = useBreedTokenBalance(address);
 
   // After approve tx succeeds, refetch allowance
   useEffect(() => {
@@ -69,9 +72,15 @@ export default function MuttProfilePage() {
   useEffect(() => {
     const fetchMutt = async () => {
       try {
-        const res = await fetch(`/api/mutt/${params.id}`);
+        const viewerParam = address ? `?viewer=${address}` : '';
+        const res = await fetch(`/api/mutt/${params.id}${viewerParam}`);
         if (res.ok) {
-          setMutt(await res.json());
+          const data = await res.json();
+          setMutt(data);
+          if (data.hasRated) {
+            setRatingSubmitted(true);
+            setRatingScore(data.myRating ?? 0);
+          }
         }
       } catch {
         // ignore
@@ -80,7 +89,7 @@ export default function MuttProfilePage() {
       }
     };
     fetchMutt();
-  }, [params.id]);
+  }, [params.id, address]);
 
   const handleRate = async () => {
     if (!mutt || ratingScore === 0) return;
@@ -193,6 +202,11 @@ export default function MuttProfilePage() {
           <h3 className="font-display text-xs text-gold tracking-[2px] uppercase mb-3">Reputation</h3>
           <RatingDisplay avgRating={mutt.avgRating} totalReviews={mutt.totalReviews} />
 
+          {!isOwner && ratingSubmitted && (
+            <p className="mt-4 text-xs" style={{ color: '#8a7d65' }}>
+              You rated {'\u2605'}{ratingScore}
+            </p>
+          )}
           {!isOwner && !ratingSubmitted && (
             <div className="mt-4">
               <p className="text-xs mb-2" style={{ color: '#6a5f4a' }}>Rate this Mutt:</p>
@@ -302,6 +316,7 @@ export default function MuttProfilePage() {
             mutt={mutt}
             address={address}
             allowance={allowance as bigint | undefined}
+            tokenBalance={tokenBalance as bigint | undefined}
             mint={mint}
             approve={approve}
             mintPending={mintPending}
@@ -340,6 +355,7 @@ function MintSection({
   mutt,
   address,
   allowance,
+  tokenBalance,
   mint,
   approve,
   mintPending,
@@ -352,6 +368,7 @@ function MintSection({
   mutt: MuttData;
   address?: `0x${string}`;
   allowance?: bigint;
+  tokenBalance?: bigint;
   mint: (tokenId: number) => void;
   approve: () => void;
   mintPending: boolean;
@@ -365,6 +382,7 @@ function MintSection({
   const mintCostBn = BigInt(oc.mintCost || '0');
   const isSoldOut = oc.maxSupply > 0 && oc.totalSupply >= oc.maxSupply;
   const needsApproval = mintCostBn > 0n && (allowance ?? 0n) < mintCostBn;
+  const insufficientBalance = mintCostBn > 0n && (tokenBalance ?? 0n) < mintCostBn;
   const isOwner = address?.toLowerCase() === mutt.breeder.toLowerCase();
   const supplyLabel = oc.maxSupply === 0 ? `${oc.totalSupply}` : `${oc.totalSupply} / ${oc.maxSupply}`;
   const progressPct = oc.maxSupply > 0 ? Math.min((oc.totalSupply / oc.maxSupply) * 100, 100) : 0;
@@ -399,16 +417,25 @@ function MintSection({
         </div>
       )}
 
+      {isOwner && (
+        <p className="text-[10px] text-center mb-2" style={{ color: '#6a5f4a' }}>
+          You are the breeder — 90% fee returns to you
+        </p>
+      )}
+
       {mintSuccess && mintSynced ? (
         <p className="text-sm text-center py-2" style={{ color: '#7dba7d' }}>
           Minted successfully!
         </p>
       ) : isSoldOut ? (
         <p className="text-sm text-center py-2" style={{ color: '#cd7f32' }}>Sold out</p>
-      ) : isOwner ? (
-        <p className="text-xs text-center py-2" style={{ color: '#6a5f4a' }}>
-          You are the breeder of this Mutt
-        </p>
+      ) : insufficientBalance ? (
+        <button
+          disabled
+          className="w-full py-2.5 border border-gold text-gold font-display text-xs tracking-[2px] uppercase opacity-30"
+        >
+          Insufficient MUTT balance
+        </button>
       ) : needsApproval ? (
         <button
           onClick={approve}
