@@ -5,7 +5,11 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder';
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
 
 // Server-side (API Routes)
-export const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
+export const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY, {
+  auth: { persistSession: false },
+});
 
-// Client-side (read-only)
-export const supabase = createClient(SUPABASE_URL, ANON_KEY);
+// Client-side (read-only) — persistSession: false to avoid localStorage access during SSR
+export const supabase = createClient(SUPABASE_URL, ANON_KEY, {
+  auth: { persistSession: false },
+});
