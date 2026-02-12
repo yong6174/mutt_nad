@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
@@ -14,10 +15,11 @@ contract MuttNFT is ERC1155, EIP712, Ownable {
         uint256 parentA;
         uint256 parentB;
         address breeder;
-        uint256 breedCost;       // in wei
+        uint256 breedCost;       // MUTT ERC-20 token amount
         uint256 lastBreedTime;
     }
 
+    IERC20 public muttToken;
     uint256 public nextTokenId = 1;
     address public serverSigner;
     uint256 public platformFeePercent = 10; // 10%
@@ -37,13 +39,14 @@ contract MuttNFT is ERC1155, EIP712, Ownable {
     event Bred(uint256 indexed newTokenId, uint256 parentA, uint256 parentB, address indexed breeder);
     event BreedCostSet(uint256 indexed tokenId, uint256 cost);
 
-    constructor(address _serverSigner, address _platformWallet)
+    constructor(address _serverSigner, address _platformWallet, address _muttToken)
         ERC1155("")
         EIP712("MuttNFT", "1")
         Ownable(msg.sender)
     {
         serverSigner = _serverSigner;
         platformWallet = _platformWallet;
+        muttToken = IERC20(_muttToken);
     }
 
     // ──────────────────────────────────────────────
@@ -88,14 +91,13 @@ contract MuttNFT is ERC1155, EIP712, Ownable {
         uint256 parentB,
         uint8 personality,
         bytes calldata signature
-    ) external payable {
+    ) external {
         require(parentA != parentB, "Same parents");
         require(balanceOf(msg.sender, parentA) > 0, "Not owner of parentA");
         require(personality < 16, "Invalid personality");
 
         MuttData storage partnerMutt = mutts[parentB];
         require(partnerMutt.breeder != address(0), "Partner not exists");
-        require(msg.value >= partnerMutt.breedCost, "Insufficient breed cost");
 
         MuttData storage myMutt = mutts[parentA];
         require(
@@ -109,12 +111,12 @@ contract MuttNFT is ERC1155, EIP712, Ownable {
         bytes32 hash = _hashTypedDataV4(structHash);
         require(hash.recover(signature) == serverSigner, "Invalid signature");
 
-        // Fee distribution: 90% to breeder, 10% to platform
-        if (msg.value > 0) {
-            uint256 platformFee = (msg.value * platformFeePercent) / 100;
-            uint256 breederFee = msg.value - platformFee;
-            payable(partnerMutt.breeder).transfer(breederFee);
-            payable(platformWallet).transfer(platformFee);
+        // ERC-20 fee distribution: 90% to breeder, 10% to platform
+        if (partnerMutt.breedCost > 0) {
+            uint256 platformFee = (partnerMutt.breedCost * platformFeePercent) / 100;
+            uint256 breederFee = partnerMutt.breedCost - platformFee;
+            require(muttToken.transferFrom(msg.sender, partnerMutt.breeder, breederFee), "Breeder fee transfer failed");
+            require(muttToken.transferFrom(msg.sender, platformWallet, platformFee), "Platform fee transfer failed");
         }
 
         uint256 tokenId = nextTokenId++;

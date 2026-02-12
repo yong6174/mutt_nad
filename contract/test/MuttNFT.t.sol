@@ -3,9 +3,20 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
 import "../src/MuttNFT.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+/// @dev Simple mock ERC-20 for testing
+contract MockMuttToken is ERC20 {
+    constructor() ERC20("Mutt Token", "MUTT") {}
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+}
 
 contract MuttNFTTest is Test {
     MuttNFT public nft;
+    MockMuttToken public token;
 
     uint256 internal serverKey = 0xA11CE;
     address internal server;
@@ -21,9 +32,12 @@ contract MuttNFTTest is Test {
     function setUp() public {
         vm.warp(1_000_000); // realistic timestamp
         server = vm.addr(serverKey);
-        nft = new MuttNFT(server, platform);
-        vm.deal(alice, 10 ether);
-        vm.deal(bob, 10 ether);
+        token = new MockMuttToken();
+        nft = new MuttNFT(server, platform, address(token));
+
+        // Give alice & bob MUTT tokens
+        token.mint(alice, 1000 ether);
+        token.mint(bob, 1000 ether);
     }
 
     // ── Helpers ──
@@ -112,20 +126,25 @@ contract MuttNFTTest is Test {
         nft.genesisHatch(0, sigB);
         tokenB = 2;
 
-        // Bob sets breed cost
+        // Bob sets breed cost to 100 MUTT
         vm.prank(bob);
-        nft.setBreedCost(tokenB, 0.1 ether);
+        nft.setBreedCost(tokenB, 100 ether);
+
+        // Alice approves MuttNFT to spend her tokens
+        vm.prank(alice);
+        token.approve(address(nft), type(uint256).max);
     }
 
     function test_Breed() public {
         (uint256 tokenA, uint256 tokenB) = _setupTwoMutts();
 
-        uint256 bobBefore = bob.balance;
-        uint256 platBefore = platform.balance;
+        uint256 bobBefore = token.balanceOf(bob);
+        uint256 platBefore = token.balanceOf(platform);
+        uint256 aliceBefore = token.balanceOf(alice);
 
         bytes memory sig = _signBreed(alice, tokenA, tokenB, 4, 1);
         vm.prank(alice);
-        nft.breed{value: 0.1 ether}(tokenA, tokenB, 4, sig);
+        nft.breed(tokenA, tokenB, 4, sig);
 
         // New token minted
         assertEq(nft.balanceOf(alice, 3), 1);
@@ -138,9 +157,10 @@ contract MuttNFTTest is Test {
         assertEq(child.parentB, tokenB);
         assertEq(child.breeder, alice);
 
-        // Fee distribution: 90% to bob, 10% to platform
-        assertEq(bob.balance - bobBefore, 0.09 ether);
-        assertEq(platform.balance - platBefore, 0.01 ether);
+        // ERC-20 fee distribution: 90 MUTT to bob, 10 MUTT to platform
+        assertEq(token.balanceOf(bob) - bobBefore, 90 ether);
+        assertEq(token.balanceOf(platform) - platBefore, 10 ether);
+        assertEq(aliceBefore - token.balanceOf(alice), 100 ether);
     }
 
     function test_Breed_RevertSameParent() public {
@@ -158,6 +178,9 @@ contract MuttNFTTest is Test {
         _setupTwoMutts();
 
         // Bob tries to breed with alice's token as parentA
+        vm.prank(bob);
+        token.approve(address(nft), type(uint256).max);
+
         bytes memory sig = _signBreed(bob, 1, 2, 4, 1);
         vm.prank(bob);
         vm.expectRevert("Not owner of parentA");
@@ -169,13 +192,13 @@ contract MuttNFTTest is Test {
 
         bytes memory sig1 = _signBreed(alice, tokenA, tokenB, 4, 1);
         vm.prank(alice);
-        nft.breed{value: 0.1 ether}(tokenA, tokenB, 4, sig1);
+        nft.breed(tokenA, tokenB, 4, sig1);
 
         // Try again immediately
         bytes memory sig2 = _signBreed(alice, tokenA, tokenB, 5, 2);
         vm.prank(alice);
         vm.expectRevert("Cooldown active");
-        nft.breed{value: 0.1 ether}(tokenA, tokenB, 5, sig2);
+        nft.breed(tokenA, tokenB, 5, sig2);
     }
 
     function test_Breed_AfterCooldown() public {
@@ -183,25 +206,35 @@ contract MuttNFTTest is Test {
 
         bytes memory sig1 = _signBreed(alice, tokenA, tokenB, 4, 1);
         vm.prank(alice);
-        nft.breed{value: 0.1 ether}(tokenA, tokenB, 4, sig1);
+        nft.breed(tokenA, tokenB, 4, sig1);
 
         // Warp past cooldown
         vm.warp(block.timestamp + 5 minutes + 1);
 
         bytes memory sig2 = _signBreed(alice, tokenA, tokenB, 5, 2);
         vm.prank(alice);
-        nft.breed{value: 0.1 ether}(tokenA, tokenB, 5, sig2);
+        nft.breed(tokenA, tokenB, 5, sig2);
 
         assertEq(nft.balanceOf(alice, 4), 1);
     }
 
-    function test_Breed_RevertInsufficientCost() public {
-        (uint256 tokenA, uint256 tokenB) = _setupTwoMutts();
-
-        bytes memory sig = _signBreed(alice, tokenA, tokenB, 4, 1);
+    function test_Breed_RevertInsufficientAllowance() public {
+        bytes memory sigA = _signHatch(alice, 7, 0);
         vm.prank(alice);
-        vm.expectRevert("Insufficient breed cost");
-        nft.breed{value: 0.05 ether}(tokenA, tokenB, 4, sig);
+        nft.genesisHatch(7, sigA);
+
+        bytes memory sigB = _signHatch(bob, 0, 0);
+        vm.prank(bob);
+        nft.genesisHatch(0, sigB);
+
+        vm.prank(bob);
+        nft.setBreedCost(2, 100 ether);
+
+        // Alice does NOT approve — should revert
+        bytes memory sig = _signBreed(alice, 1, 2, 4, 1);
+        vm.prank(alice);
+        vm.expectRevert();
+        nft.breed(1, 2, 4, sig);
     }
 
     function test_Breed_FreeCost() public {
@@ -221,6 +254,26 @@ contract MuttNFTTest is Test {
         assertEq(nft.balanceOf(alice, 3), 1);
     }
 
+    function test_Breed_UnlimitedApproval() public {
+        (uint256 tokenA, uint256 tokenB) = _setupTwoMutts();
+
+        // First breed
+        bytes memory sig1 = _signBreed(alice, tokenA, tokenB, 4, 1);
+        vm.prank(alice);
+        nft.breed(tokenA, tokenB, 4, sig1);
+
+        // Warp past cooldown
+        vm.warp(block.timestamp + 5 minutes + 1);
+
+        // Second breed — no additional approval needed
+        bytes memory sig2 = _signBreed(alice, tokenA, tokenB, 5, 2);
+        vm.prank(alice);
+        nft.breed(tokenA, tokenB, 5, sig2);
+
+        assertEq(nft.balanceOf(alice, 3), 1);
+        assertEq(nft.balanceOf(alice, 4), 1);
+    }
+
     // ── Setters ──
 
     function test_SetBreedCost() public {
@@ -229,10 +282,10 @@ contract MuttNFTTest is Test {
         nft.genesisHatch(7, sig);
 
         vm.prank(alice);
-        nft.setBreedCost(1, 0.5 ether);
+        nft.setBreedCost(1, 50 ether); // 50 MUTT
 
         MuttNFT.MuttData memory data = nft.getMutt(1);
-        assertEq(data.breedCost, 0.5 ether);
+        assertEq(data.breedCost, 50 ether);
     }
 
     function test_SetBreedCost_RevertNotBreeder() public {
@@ -242,7 +295,7 @@ contract MuttNFTTest is Test {
 
         vm.prank(bob);
         vm.expectRevert("Not breeder");
-        nft.setBreedCost(1, 0.5 ether);
+        nft.setBreedCost(1, 50 ether);
     }
 
     // ── Owner Admin ──
@@ -266,5 +319,11 @@ contract MuttNFTTest is Test {
         address newSigner = address(0xBEEF);
         nft.setServerSigner(newSigner);
         assertEq(nft.serverSigner(), newSigner);
+    }
+
+    // ── Token reference ──
+
+    function test_MuttTokenAddress() public view {
+        assertEq(address(nft.muttToken()), address(token));
     }
 }

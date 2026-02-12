@@ -9,4 +9,5 @@ remappings = [
 ]
 
 [rpc_endpoints]
-monad_testnet = "https://testnet-rpc.monad.xyz"
+monad_testnet = "https://monad-testnet.drpc.org"
+monad_mainnet = "https://infra.originstake.com/monad/evm"
