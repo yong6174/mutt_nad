@@ -1,9 +1,9 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { monadTestnet } from './chain';
+import { activeChain } from './chain';
 
 export const config = getDefaultConfig({
   appName: 'Mutt',
   projectId: 'none',
-  chains: [monadTestnet],
+  chains: [activeChain],
   ssr: true,
 });

@@ -76,8 +76,14 @@ export default function LandingPage() {
         {/* Text above circle */}
         <div className="text-center pointer-events-none mb-8">
           <h1
-            className="font-display text-[42px] text-gold tracking-[6px] leading-tight mb-4 font-semibold"
-            style={{ textShadow: '0 0 40px rgba(200,168,78,0.4)' }}
+            className="font-display text-[42px] tracking-[6px] leading-tight mb-4 font-semibold"
+            style={{
+              background: 'linear-gradient(180deg, #f5e6a3 0%, #c8a84e 40%, #a07830 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              filter: 'drop-shadow(0 0 20px rgba(200,168,78,0.5)) drop-shadow(0 0 50px rgba(200,168,78,0.25))',
+            }}
           >
             Hatch. Breed.
             <br />

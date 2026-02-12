@@ -1,15 +1,23 @@
 import { privateKeyToAccount } from 'viem/accounts';
 import { type Hex } from 'viem';
+import { activeChain, MUTT_NFT_ADDRESS } from '../chain';
+
+const NETWORK = process.env.NEXT_PUBLIC_NETWORK || 'testnet';
+const isMainnet = NETWORK === 'mainnet';
+
+const SERVER_KEY = isMainnet
+  ? process.env.MAINNET_SERVER_PRIVATE_KEY
+  : process.env.TESTNET_SERVER_PRIVATE_KEY;
 
 const serverAccount = privateKeyToAccount(
-  (process.env.SERVER_PRIVATE_KEY || '0x0000000000000000000000000000000000000000000000000000000000000001') as Hex
+  (SERVER_KEY || '0x0000000000000000000000000000000000000000000000000000000000000001') as Hex
 );
 
 const DOMAIN = {
   name: 'MuttNFT',
   version: '1',
-  chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID || 10143),
-  verifyingContract: (process.env.NEXT_PUBLIC_MUTT_NFT_ADDRESS || '0x') as `0x${string}`,
+  chainId: activeChain.id,
+  verifyingContract: (MUTT_NFT_ADDRESS || '0x') as `0x${string}`,
 } as const;
 
 const HATCH_TYPES = {

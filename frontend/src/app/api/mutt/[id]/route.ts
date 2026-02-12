@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db';
 import { createPublicClient, http } from 'viem';
-import { monadTestnet } from '@/lib/chain';
+import { activeChain, MUTT_NFT_ADDRESS } from '@/lib/chain';
 import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
 
 const client = createPublicClient({
-  chain: monadTestnet,
+  chain: activeChain,
   transport: http(),
 });
 
@@ -78,7 +78,7 @@ export async function GET(
     // Try to fetch on-chain data
     let onChain = null;
     try {
-      const contractAddr = process.env.NEXT_PUBLIC_MUTT_NFT_ADDRESS as `0x${string}`;
+      const contractAddr = MUTT_NFT_ADDRESS;
       if (contractAddr && contractAddr !== '0x') {
         const data = await client.readContract({
           address: contractAddr,

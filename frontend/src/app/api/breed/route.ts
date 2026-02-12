@@ -4,11 +4,11 @@ import { signBreed } from '@/lib/server/signer';
 import { analyzeBreeding, mbtiGeneticFallback, randomMbti } from '@/lib/server/llm';
 import { MBTI_INDEX, type MBTI } from '@/types';
 import { createPublicClient, http } from 'viem';
-import { monadTestnet } from '@/lib/chain';
+import { activeChain, MUTT_NFT_ADDRESS } from '@/lib/chain';
 import { isMockMode } from '@/lib/mock';
 
 const client = createPublicClient({
-  chain: monadTestnet,
+  chain: activeChain,
   transport: http(),
 });
 
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     // Get nonce
     let nonce = 0n;
     try {
-      const contractAddr = process.env.NEXT_PUBLIC_MUTT_NFT_ADDRESS as `0x${string}`;
+      const contractAddr = MUTT_NFT_ADDRESS;
       if (contractAddr && contractAddr !== '0x') {
         nonce = await client.readContract({
           address: contractAddr,

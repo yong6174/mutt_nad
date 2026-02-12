@@ -163,6 +163,7 @@ export const MOCK_MUTTS: Record<number, {
 };
 
 export function isMockMode(): boolean {
+  if (process.env.NEXT_PUBLIC_MOCK === 'true') return true;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   return !url || url.includes('placeholder');
 }
