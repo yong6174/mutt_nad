@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi';
 import Link from 'next/link';
 import { RatingDisplay } from '@/components/rating/RatingDisplay';
 import { StarRating } from '@/components/rating/StarRating';
+import { useSetBreedCost } from '@/hooks/useSetBreedCost';
 import type { BloodlineGrade } from '@/types';
 
 interface MuttData {
@@ -40,6 +41,8 @@ export default function MuttProfilePage() {
   const [loading, setLoading] = useState(true);
   const [ratingScore, setRatingScore] = useState(0);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [breedCostInput, setBreedCostInput] = useState('');
+  const { setBreedCost, isPending: costPending, isSuccess: costSuccess } = useSetBreedCost();
 
   useEffect(() => {
     const fetchMutt = async () => {
@@ -86,7 +89,7 @@ export default function MuttProfilePage() {
 
   const bl = BLOODLINE_DISPLAY[mutt.bloodline];
   const isOwner = address?.toLowerCase() === mutt.breeder.toLowerCase();
-  const breedCostMON = mutt.onChain?.breedCost
+  const breedCostDisplay = mutt.onChain?.breedCost
     ? (Number(mutt.onChain.breedCost) / 1e18).toFixed(4)
     : '0';
 
@@ -242,8 +245,33 @@ export default function MuttProfilePage() {
           </div>
           <div className="flex justify-between">
             <span className="text-xs" style={{ color: '#6a5f4a' }}>Breed Cost</span>
-            <span className="text-sm text-gold">{breedCostMON} MON</span>
+            <span className="text-sm text-gold">{breedCostDisplay} MUTT</span>
           </div>
+
+          {isOwner && (
+            <div className="flex items-center gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(200,168,78,0.08)' }}>
+              <input
+                className="flex-1 px-3 py-1.5 text-xs focus:outline-none"
+                style={{
+                  background: 'rgba(6,6,10,0.8)',
+                  border: '1px solid rgba(200,168,78,0.15)',
+                  color: '#d4c5a0',
+                }}
+                placeholder="New cost (MUTT)"
+                value={breedCostInput}
+                onChange={(e) => setBreedCostInput(e.target.value)}
+              />
+              <button
+                onClick={() => {
+                  if (mutt && breedCostInput) setBreedCost(mutt.tokenId, breedCostInput);
+                }}
+                disabled={costPending || !breedCostInput}
+                className="px-3 py-1.5 border border-gold text-gold font-display text-[11px] disabled:opacity-30 hover:bg-gold hover:text-[#06060a] transition-colors"
+              >
+                {costPending ? 'Setting...' : costSuccess ? 'Set!' : 'Set Cost'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Actions */}

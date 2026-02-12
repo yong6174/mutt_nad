@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useAccount } from 'wagmi';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useBreed, useApproveBreedToken, useBreedTokenAllowance, useBreedTokenBalance } from '@/hooks/useBreed';
+import { useCooldown } from '@/hooks/useCooldown';
+import { WalletGuard } from '@/components/WalletGuard';
 import type { BloodlineGrade } from '@/types';
 
 interface MuttSlot {
@@ -30,12 +33,17 @@ export default function BreedPage() {
 }
 
 function BreedContent() {
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
   const searchParams = useSearchParams();
   const partnerId = searchParams.get('partner');
+  const { breed, isPending: txPending, isConfirming, isSuccess, error: txError } = useBreed();
+  const { approve, isPending: approvePending, isSuccess: approveSuccess } = useApproveBreedToken();
+  const { data: allowance, refetch: refetchAllowance } = useBreedTokenAllowance(address);
+  const { data: tokenBalance } = useBreedTokenBalance(address);
 
   const [myMutt, setMyMutt] = useState<MuttSlot | null>(null);
   const [partner, setPartner] = useState<MuttSlot | null>(null);
+  const { isReady: cooldownReady, label: cooldownLabel } = useCooldown(myMutt?.tokenId);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<MuttSlot[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,6 +53,11 @@ function BreedContent() {
     traits: { color: string; expression: string; accessory: string };
   } | null>(null);
   const [error, setError] = useState('');
+  const pendingBreedRef = useRef<{
+    personalityType: string;
+    personalityDesc: string;
+    traits: { color: string; expression: string; accessory: string };
+  } | null>(null);
 
   const fetchMutt = useCallback(async (id: number): Promise<MuttSlot | null> => {
     try {
@@ -75,8 +88,41 @@ function BreedContent() {
     }
   }, [fetchMutt, myMutt]);
 
+  // Watch tx confirmation
+  useEffect(() => {
+    if (isSuccess && pendingBreedRef.current) {
+      setResult(pendingBreedRef.current);
+      setLoading(false);
+    }
+  }, [isSuccess]);
+
+  useEffect(() => {
+    if (txError) {
+      setError(txError.message.slice(0, 100));
+      setLoading(false);
+    }
+  }, [txError]);
+
+  // After approve tx succeeds, refetch allowance
+  useEffect(() => {
+    if (approveSuccess) {
+      refetchAllowance();
+    }
+  }, [approveSuccess, refetchAllowance]);
+
+  const breedCostBn = partner?.breedCost ? BigInt(partner.breedCost) : 0n;
+  const needsApproval = breedCostBn > 0n && (allowance ?? 0n) < breedCostBn;
+  const insufficientBalance = breedCostBn > 0n && (tokenBalance ?? 0n) < breedCostBn;
+
+  const handleApprove = () => {
+    approve();
+  };
+
   const handleBreed = async () => {
-    const walletAddr = address || '0x0000000000000000000000000000000000000000';
+    if (!isConnected || !address) {
+      setError('Please connect your wallet first');
+      return;
+    }
     if (!myMutt || !partner) return;
     setLoading(true);
     setError('');
@@ -86,7 +132,7 @@ function BreedContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          address: walletAddr,
+          address,
           parentA: myMutt.tokenId,
           parentB: partner.tokenId,
         }),
@@ -95,17 +141,24 @@ function BreedContent() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Breeding failed');
+        setLoading(false);
         return;
       }
 
-      setResult({
+      pendingBreedRef.current = {
         personalityType: data.personalityType,
         personalityDesc: data.personalityDesc,
         traits: data.traits,
-      });
+      };
+
+      breed(
+        myMutt.tokenId,
+        partner.tokenId,
+        data.personality,
+        data.signature as `0x${string}`,
+      );
     } catch {
       setError('Network error');
-    } finally {
       setLoading(false);
     }
   };
@@ -167,6 +220,7 @@ function BreedContent() {
 
   return (
     <div className="max-w-5xl mx-auto py-10 px-6">
+      <WalletGuard />
       <h1 className="text-center font-display text-[32px] text-gold tracking-[3px] mb-2">
         Breeding Chamber
       </h1>
@@ -195,29 +249,57 @@ function BreedContent() {
             </div>
           )}
 
-          {partner?.breedCost && (
+          {breedCostBn > 0n && (
             <div className="p-3 text-center" style={{ border: '1px solid rgba(200,168,78,0.15)' }}>
               <p className="font-display text-[10px] tracking-[2px] uppercase" style={{ color: '#6a5f4a' }}>
                 Breed Cost
               </p>
               <p className="text-lg text-gold mt-1">
-                {(Number(partner.breedCost) / 1e18).toFixed(4)} MON
+                {(Number(breedCostBn) / 1e18).toFixed(2)} MUTT
               </p>
               <p className="text-[10px] mt-0.5" style={{ color: '#3a3028' }}>incl. 10% platform fee</p>
+              {insufficientBalance && (
+                <p className="text-[11px] text-red-400 mt-1">Insufficient MUTT balance</p>
+              )}
             </div>
           )}
 
-          <button
-            onClick={handleBreed}
-            disabled={!myMutt || !partner || loading}
-            className="px-12 py-4 border-2 border-gold text-gold font-display font-semibold tracking-[3px] uppercase disabled:opacity-30 relative overflow-hidden group bg-transparent"
-            style={{ boxShadow: myMutt && partner ? '0 0 30px rgba(200,168,78,0.3)' : 'none' }}
-          >
-            <span className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-[400ms] z-0" />
-            <span className="relative z-10 group-hover:text-[#06060a] transition-colors duration-[400ms]">
-              {loading ? 'Breeding...' : '\u2726 BREED \u2726'}
-            </span>
-          </button>
+          {/* Cooldown */}
+          {myMutt && !cooldownReady && (
+            <div className="p-3 text-center" style={{ border: '1px solid rgba(200,168,78,0.15)' }}>
+              <p className="font-display text-[10px] tracking-[2px] uppercase" style={{ color: '#6a5f4a' }}>
+                Cooldown
+              </p>
+              <p className="text-lg font-display mt-1" style={{ color: '#cd7f32' }}>
+                {cooldownLabel}
+              </p>
+            </div>
+          )}
+
+          {needsApproval ? (
+            <button
+              onClick={handleApprove}
+              disabled={approvePending || !!insufficientBalance}
+              className="px-12 py-4 border-2 border-gold text-gold font-display font-semibold tracking-[3px] uppercase disabled:opacity-30 relative overflow-hidden group bg-transparent"
+            >
+              <span className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-[400ms] z-0" />
+              <span className="relative z-10 group-hover:text-[#06060a] transition-colors duration-[400ms]">
+                {approvePending ? 'Approving...' : 'Approve MUTT'}
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={handleBreed}
+              disabled={!myMutt || !partner || loading || !!insufficientBalance || !cooldownReady}
+              className="px-12 py-4 border-2 border-gold text-gold font-display font-semibold tracking-[3px] uppercase disabled:opacity-30 relative overflow-hidden group bg-transparent"
+              style={{ boxShadow: myMutt && partner && cooldownReady ? '0 0 30px rgba(200,168,78,0.3)' : 'none' }}
+            >
+              <span className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-[400ms] z-0" />
+              <span className="relative z-10 group-hover:text-[#06060a] transition-colors duration-[400ms]">
+                {txPending ? 'Confirm in Wallet...' : isConfirming ? 'Confirming...' : loading ? 'Preparing...' : '\u2726 BREED \u2726'}
+              </span>
+            </button>
+          )}
 
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
@@ -267,7 +349,7 @@ function BreedContent() {
                 </p>
                 <p className="text-[11px] text-gold tracking-[1px]">{m.personality}</p>
                 <p className="text-[10px] mt-1" style={{ color: '#6a5f4a' }}>
-                  {m.breedCost ? `${(Number(m.breedCost) / 1e18).toFixed(4)} MON` : 'Free'}
+                  {m.breedCost && Number(m.breedCost) > 0 ? `${(Number(m.breedCost) / 1e18).toFixed(2)} MUTT` : 'Free'}
                 </p>
               </button>
             ))}

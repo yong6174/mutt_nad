@@ -1,9 +1,16 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAccount } from 'wagmi';
+import { useGenesisHatch } from '@/hooks/useGenesisHatch';
+import { useHasGenesis } from '@/hooks/useHasGenesis';
+import { WalletGuard } from '@/components/WalletGuard';
+import { supabase } from '@/lib/db';
+import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
+import Link from 'next/link';
+import type { BloodlineGrade } from '@/types';
 
-type HatchState = 'input' | 'ready' | 'hatching' | 'result';
+type HatchState = 'input' | 'ready' | 'hatching' | 'signing' | 'confirming' | 'result';
 
 interface HatchResult {
   personalityType: string;
@@ -13,7 +20,10 @@ interface HatchResult {
 }
 
 export default function HatchPage() {
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
+  const { data: alreadyHatched } = useHasGenesis(address);
+  const { hatch, isPending: txPending, isConfirming, isSuccess, error: txError } = useGenesisHatch();
+
   const [identity, setIdentity] = useState('');
   const [state, setState] = useState<HatchState>('input');
   const [result, setResult] = useState<HatchResult | null>(null);
@@ -23,6 +33,7 @@ export default function HatchPage() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const resultRef = useRef<HatchResult | null>(null);
+  const sigRef = useRef<{ personality: number; signature: `0x${string}` } | null>(null);
 
   const showResultCard = useCallback(() => {
     setShowBurst(true);
@@ -32,9 +43,27 @@ export default function HatchPage() {
     }, 400);
   }, []);
 
+  // Watch tx confirmation
+  useEffect(() => {
+    if (isSuccess && resultRef.current) {
+      setResult(resultRef.current);
+      showResultCard();
+    }
+  }, [isSuccess, showResultCard]);
+
+  useEffect(() => {
+    if (txError) {
+      setError(txError.message.slice(0, 100));
+      setState('input');
+    }
+  }, [txError]);
+
   // Step 1: Submit identity → API call → show paused video
   const handleHatch = async () => {
-    const walletAddr = address || '0x0000000000000000000000000000000000000000';
+    if (!isConnected || !address) {
+      setError('Please connect your wallet first');
+      return;
+    }
     setError('');
     setShowBurst(false);
     setCardVisible(false);
@@ -44,7 +73,7 @@ export default function HatchPage() {
       const res = await fetch('/api/hatch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: walletAddr, identity: identity.trim() }),
+        body: JSON.stringify({ address, identity: identity.trim() }),
       });
 
       const data = await res.json();
@@ -60,51 +89,54 @@ export default function HatchPage() {
         traits: data.traits,
         tokenId: data.tokenId,
       };
+      sigRef.current = {
+        personality: data.personality,
+        signature: data.signature as `0x${string}`,
+      };
     } catch {
       setError('Network error');
       setState('input');
     }
   };
 
-  // Step 2: User clicks paused video → play → result
+  // Step 2: User clicks paused video → play → submit tx
   const handlePlay = () => {
     if (state !== 'ready') return;
     setState('hatching');
 
     const video = videoRef.current;
+    const onVideoEnd = () => {
+      if (sigRef.current) {
+        setState('signing');
+        hatch(sigRef.current.personality, sigRef.current.signature);
+      }
+    };
+
     if (video) {
       video.currentTime = 0;
-      video.onended = () => {
-        if (resultRef.current) {
-          setResult(resultRef.current);
-          showResultCard();
-        }
-      };
-      video.play().catch(() => {
-        if (resultRef.current) {
-          setResult(resultRef.current);
-          showResultCard();
-        }
-      });
+      video.onended = onVideoEnd;
+      video.play().catch(onVideoEnd);
     } else {
-      // No video fallback
-      if (resultRef.current) {
-        setResult(resultRef.current);
-        showResultCard();
-      }
+      onVideoEnd();
     }
 
     // 8s fallback
     setTimeout(() => {
-      if (resultRef.current) {
-        setResult((prev) => prev ?? resultRef.current);
-        showResultCard();
+      if (sigRef.current) {
+        setState('signing');
+        hatch(sigRef.current.personality, sigRef.current.signature);
       }
     }, 8000);
   };
 
+  // Already hatched — show genesis mutt mini card + CTAs
+  if (alreadyHatched) {
+    return <AlreadyHatchedScreen address={address} />;
+  }
+
   return (
     <>
+      <WalletGuard />
       {/* Light Burst */}
       <div
         className={`fixed inset-0 z-[70] pointer-events-none ${showBurst ? '' : 'opacity-0'}`}
@@ -153,11 +185,12 @@ export default function HatchPage() {
 
           <button
             onClick={handleHatch}
-            className="block w-full py-[18px] border-2 border-gold text-gold font-display text-base font-semibold tracking-[3px] uppercase relative overflow-hidden group bg-transparent"
+            disabled={!isConnected}
+            className="block w-full py-[18px] border-2 border-gold text-gold font-display text-base font-semibold tracking-[3px] uppercase relative overflow-hidden group bg-transparent disabled:opacity-30"
           >
             <span className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-[400ms] z-0" />
             <span className="relative z-10 group-hover:text-[#06060a] transition-colors duration-[400ms]">
-              {'\u{1F95A}'} Hatch My Mutt
+              {!isConnected ? 'Connect Wallet First' : '\u{1F95A} Hatch My Mutt'}
             </span>
           </button>
           <p className="text-center mt-3 text-xs" style={{ color: '#3a3028' }}>
@@ -189,7 +222,6 @@ export default function HatchPage() {
             <source src="/videos/hatch.mp4" type="video/mp4" />
           </video>
 
-          {/* Tap overlay (only when paused/ready) */}
           {state === 'ready' && (
             <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/30 transition-opacity">
               <div className="text-center">
@@ -213,6 +245,23 @@ export default function HatchPage() {
         </p>
       </div>
 
+      {/* ===== STATE 2.5: Signing / Confirming TX ===== */}
+      <div
+        className={`flex-col items-center justify-center min-h-[70vh] px-6 py-10 ${
+          state === 'signing' || state === 'confirming' || (txPending || isConfirming) ? 'flex' : 'hidden'
+        }`}
+      >
+        <div className="text-6xl mb-6" style={{ animation: 'pulse-text 1.5s ease-in-out infinite' }}>
+          {'\u{1F95A}'}
+        </div>
+        <p className="font-display text-sm tracking-[3px] uppercase mb-2" style={{ color: '#c8a84e' }}>
+          {txPending ? 'Confirm in Wallet...' : 'Confirming Transaction...'}
+        </p>
+        <p className="text-xs" style={{ color: '#6a5f4a' }}>
+          {txPending ? 'Please approve the transaction in your wallet' : 'Waiting for on-chain confirmation'}
+        </p>
+      </div>
+
       {/* ===== STATE 3: Result ===== */}
       <div className={`flex-col items-center px-6 py-[60px] ${state === 'result' ? 'flex' : 'hidden'}`}>
         <div
@@ -226,7 +275,6 @@ export default function HatchPage() {
             boxShadow: '0 0 60px rgba(200,168,78,0.15)',
           }}
         >
-          {/* Inner border */}
           <div
             className="absolute pointer-events-none"
             style={{ inset: '6px', border: '1px solid rgba(200,168,78,0.15)' }}
@@ -275,7 +323,152 @@ export default function HatchPage() {
             {'\u{1F415}'} Mutt &mdash; Your journey begins
           </p>
         </div>
+
+        <Link
+          href="/my"
+          className="mt-8 inline-block px-8 py-3 border border-gold text-gold font-display text-sm tracking-[2px] uppercase hover:bg-gold hover:text-[#06060a] transition-colors"
+        >
+          View Collection
+        </Link>
       </div>
     </>
+  );
+}
+
+const BLOODLINE_LABEL: Record<BloodlineGrade, string> = {
+  mutt: 'Mutt',
+  halfblood: 'Halfblood',
+  pureblood: 'Pureblood',
+  sacred28: 'Sacred 28',
+};
+
+interface GenesisMutt {
+  tokenId: number;
+  personality: string;
+  personalityDesc: string;
+  bloodline: BloodlineGrade;
+  traits: { color: string; expression: string; accessory: string };
+}
+
+function AlreadyHatchedScreen({ address }: { address?: `0x${string}` }) {
+  const [mutt, setMutt] = useState<GenesisMutt | null>(null);
+
+  useEffect(() => {
+    if (!address) return;
+    const addr = address.toLowerCase();
+
+    const fetch_ = async () => {
+      if (isMockMode()) {
+        const first = Object.values(MOCK_MUTTS)[0];
+        if (first) {
+          setMutt({
+            tokenId: first.token_id,
+            personality: first.personality,
+            personalityDesc: first.personality_desc,
+            bloodline: first.bloodline as BloodlineGrade,
+            traits: { color: first.color, expression: first.expression, accessory: first.accessory },
+          });
+        }
+        return;
+      }
+
+      const { data } = await supabase
+        .from('mutts')
+        .select('token_id, personality, personality_desc, bloodline, color, expression, accessory')
+        .eq('breeder', addr)
+        .eq('parent_a', 0)
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setMutt({
+          tokenId: data.token_id,
+          personality: data.personality,
+          personalityDesc: data.personality_desc,
+          bloodline: data.bloodline as BloodlineGrade,
+          traits: { color: data.color, expression: data.expression, accessory: data.accessory },
+        });
+      }
+    };
+
+    fetch_();
+  }, [address]);
+
+  return (
+    <div className="max-w-[480px] mx-auto px-6 py-[60px]">
+      <p className="text-center font-display text-xs tracking-[3px] uppercase mb-8" style={{ color: '#6a5f4a' }}>
+        Genesis Complete
+      </p>
+
+      {/* Mini profile card */}
+      <div
+        className="relative p-8 text-center"
+        style={{
+          border: '2px solid #c8a84e',
+          background: 'linear-gradient(135deg, #1a1610 0%, #12100c 50%, #0e0c08 100%)',
+          boxShadow: '0 0 40px rgba(200,168,78,0.1)',
+        }}
+      >
+        <div
+          className="absolute pointer-events-none"
+          style={{ inset: '5px', border: '1px solid rgba(200,168,78,0.12)' }}
+        />
+
+        {mutt ? (
+          <>
+            <div className="text-[64px] mb-3">{'\u{1F98A}'}</div>
+            <p className="font-display text-xl text-gold tracking-[2px] mb-1">
+              Mutt #{String(mutt.tokenId).padStart(4, '0')}
+            </p>
+            <p className="text-base tracking-[2px] mb-1" style={{ color: '#d4c5a0' }}>
+              {mutt.personality}
+            </p>
+            <p className="text-sm italic mb-4" style={{ color: '#6a5f4a' }}>
+              &ldquo;{mutt.personalityDesc}&rdquo;
+            </p>
+            <div className="flex gap-2 justify-center mb-3">
+              {Object.values(mutt.traits).map((t) => (
+                <span
+                  key={t}
+                  className="px-3 py-1 text-[11px]"
+                  style={{ border: '1px solid rgba(200,168,78,0.2)', color: '#8a7d65' }}
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+            <p className="text-[11px]" style={{ color: '#6a5f4a' }}>
+              {BLOODLINE_LABEL[mutt.bloodline]}
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="text-[64px] mb-3 opacity-30">{'\u{1F98A}'}</div>
+            <p className="font-display text-xl text-gold tracking-[2px]">Your Genesis Mutt</p>
+            <p className="text-sm mt-2" style={{ color: '#6a5f4a' }}>One per wallet.</p>
+          </>
+        )}
+      </div>
+
+      {/* CTAs */}
+      <div className="flex gap-3 mt-8">
+        <Link
+          href="/breed"
+          className="flex-1 py-3 text-center border-2 border-gold text-gold font-display text-sm tracking-[2px] uppercase relative overflow-hidden group"
+        >
+          <span className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-[400ms] z-0" />
+          <span className="relative z-10 group-hover:text-[#06060a] transition-colors duration-[400ms]">
+            Breed Now
+          </span>
+        </Link>
+        <Link
+          href="/my"
+          className="flex-1 py-3 text-center border border-[rgba(200,168,78,0.3)] font-display text-sm tracking-[2px] uppercase transition-colors hover:border-gold"
+          style={{ color: '#8a7d65' }}
+        >
+          View Collection
+        </Link>
+      </div>
+    </div>
   );
 }
