@@ -6,11 +6,11 @@ import { decodeEventLog } from 'viem';
 import { MUTT_NFT_ABI } from '@/lib/contracts/abi';
 import { MUTT_NFT_ADDRESS } from '@/lib/chain';
 
-export function useGenesisHatch() {
+export function useMint() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess, data: receipt } = useWaitForTransactionReceipt({ hash });
 
-  const tokenId = useMemo(() => {
+  const newTotalSupply = useMemo(() => {
     if (!receipt?.logs) return undefined;
     for (const log of receipt.logs) {
       try {
@@ -19,8 +19,8 @@ export function useGenesisHatch() {
           data: log.data,
           topics: log.topics,
         });
-        if (decoded.eventName === 'GenesisHatch') {
-          return Number((decoded.args as { tokenId: bigint }).tokenId);
+        if (decoded.eventName === 'Minted') {
+          return Number((decoded.args as { newTotalSupply: bigint }).newTotalSupply);
         }
       } catch {
         // not our event
@@ -29,15 +29,15 @@ export function useGenesisHatch() {
     return undefined;
   }, [receipt]);
 
-  const hatch = (personality: number, signature: `0x${string}`) => {
+  const mint = (tokenId: number) => {
     if (!MUTT_NFT_ADDRESS) return;
     writeContract({
       address: MUTT_NFT_ADDRESS,
       abi: MUTT_NFT_ABI,
-      functionName: 'genesisHatch',
-      args: [personality, signature],
+      functionName: 'mint',
+      args: [BigInt(tokenId)],
     });
   };
 
-  return { hatch, hash, isPending, isConfirming, isSuccess, tokenId, error };
+  return { mint, hash, isPending, isConfirming, isSuccess, newTotalSupply, error };
 }

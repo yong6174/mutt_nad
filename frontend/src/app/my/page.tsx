@@ -8,6 +8,7 @@ import { supabase } from '@/lib/db';
 import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
 import { useCooldown } from '@/hooks/useCooldown';
 import { useSetBreedCost } from '@/hooks/useSetBreedCost';
+import { useSetMintConfig } from '@/hooks/useSetMintConfig';
 import type { BloodlineGrade } from '@/types';
 
 interface MyMutt {
@@ -214,8 +215,12 @@ function MuttCard({ mutt }: { mutt: MyMutt }) {
   const router = useRouter();
   const { isReady, label } = useCooldown(mutt.tokenId);
   const { setBreedCost, isPending: costPending, isSuccess: costSuccess } = useSetBreedCost();
+  const { setMintConfig, isPending: mintConfigPending, isSuccess: mintConfigSuccess } = useSetMintConfig();
   const [editing, setEditing] = useState(false);
+  const [editingMint, setEditingMint] = useState(false);
   const [costInput, setCostInput] = useState('');
+  const [mintCostInput, setMintCostInput] = useState('');
+  const [maxSupplyInput, setMaxSupplyInput] = useState('');
 
   const currentCost = mutt.breedCost && Number(mutt.breedCost) > 0
     ? (Number(mutt.breedCost) / 1e18).toFixed(2)
@@ -228,7 +233,7 @@ function MuttCard({ mutt }: { mutt: MyMutt }) {
         border: '1px solid rgba(200,168,78,0.12)',
         background: 'linear-gradient(135deg, #1a1610 0%, #12100c 100%)',
       }}
-      onClick={() => { if (!editing) router.push(`/mutt/${mutt.tokenId}`); }}
+      onClick={() => { if (!editing && !editingMint) router.push(`/mutt/${mutt.tokenId}`); }}
     >
       {/* Cooldown badge */}
       <div
@@ -300,6 +305,71 @@ function MuttCard({ mutt }: { mutt: MyMutt }) {
               className="text-[11px] px-1 hover:text-gold transition-colors"
               style={{ color: '#6a5f4a' }}
               title="Edit breed cost"
+            >
+              {'\u270E'}
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Mint config row */}
+      <div
+        className="flex items-center justify-between mt-1 pt-1"
+        style={{ borderTop: '1px solid rgba(200,168,78,0.04)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {editingMint ? (
+          <div className="flex items-center gap-1 w-full">
+            <input
+              className="flex-1 min-w-0 px-1.5 py-1 text-[10px] focus:outline-none"
+              style={{
+                background: 'rgba(6,6,10,0.8)',
+                border: '1px solid rgba(200,168,78,0.15)',
+                color: '#d4c5a0',
+              }}
+              placeholder="Cost"
+              value={mintCostInput}
+              onChange={(e) => setMintCostInput(e.target.value)}
+              autoFocus
+            />
+            <input
+              className="w-14 px-1.5 py-1 text-[10px] focus:outline-none"
+              style={{
+                background: 'rgba(6,6,10,0.8)',
+                border: '1px solid rgba(200,168,78,0.15)',
+                color: '#d4c5a0',
+              }}
+              placeholder="Max"
+              value={maxSupplyInput}
+              onChange={(e) => setMaxSupplyInput(e.target.value)}
+            />
+            <button
+              onClick={() => {
+                if (mintCostInput) setMintConfig(mutt.tokenId, mintCostInput, parseInt(maxSupplyInput) || 0);
+              }}
+              disabled={mintConfigPending || !mintCostInput}
+              className="px-1.5 py-1 border border-gold text-gold font-display text-[9px] disabled:opacity-30 hover:bg-gold hover:text-[#06060a] transition-colors shrink-0"
+            >
+              {mintConfigPending ? '...' : mintConfigSuccess ? '\u2713' : 'Set'}
+            </button>
+            <button
+              onClick={() => setEditingMint(false)}
+              className="text-[10px] px-1 py-1 shrink-0"
+              style={{ color: '#6a5f4a' }}
+            >
+              {'\u2715'}
+            </button>
+          </div>
+        ) : (
+          <>
+            <span className="text-[10px]" style={{ color: '#6a5f4a' }}>
+              Mint: config
+            </span>
+            <button
+              onClick={() => setEditingMint(true)}
+              className="text-[10px] px-1 hover:text-gold transition-colors"
+              style={{ color: '#6a5f4a' }}
+              title="Edit mint config"
             >
               {'\u270E'}
             </button>

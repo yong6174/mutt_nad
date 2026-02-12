@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useBreed, useApproveBreedToken, useBreedTokenAllowance, useBreedTokenBalance } from '@/hooks/useBreed';
 import { useCooldown } from '@/hooks/useCooldown';
+import { useSync } from '@/hooks/useSync';
 import { WalletGuard } from '@/components/WalletGuard';
 import { isMockMode } from '@/lib/mock';
 import type { BloodlineGrade } from '@/types';
@@ -37,7 +38,8 @@ function BreedContent() {
   const { address, isConnected } = useAccount();
   const searchParams = useSearchParams();
   const partnerId = searchParams.get('partner');
-  const { breed, isPending: txPending, isConfirming, isSuccess, error: txError } = useBreed();
+  const { breed, isPending: txPending, isConfirming, isSuccess, tokenId: onChainTokenId, error: txError } = useBreed();
+  const { sync, syncing, synced } = useSync();
   const { approve, isPending: approvePending, isSuccess: approveSuccess } = useApproveBreedToken();
   const { data: allowance, refetch: refetchAllowance } = useBreedTokenAllowance(address);
   const { data: tokenBalance } = useBreedTokenBalance(address);
@@ -89,13 +91,19 @@ function BreedContent() {
     }
   }, [fetchMutt, myMutt]);
 
-  // Watch tx confirmation
+  // Watch tx confirmation → sync → show result
   useEffect(() => {
-    if (isSuccess && pendingBreedRef.current) {
+    if (isSuccess && onChainTokenId && pendingBreedRef.current && !synced && !syncing) {
+      sync(address!, onChainTokenId, 'breed');
+    }
+  }, [isSuccess, onChainTokenId, address, sync, synced, syncing]);
+
+  useEffect(() => {
+    if (synced && pendingBreedRef.current) {
       setResult(pendingBreedRef.current);
       setLoading(false);
     }
-  }, [isSuccess]);
+  }, [synced]);
 
   useEffect(() => {
     if (txError) {
@@ -308,7 +316,7 @@ function BreedContent() {
             >
               <span className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-[400ms] z-0" />
               <span className="relative z-10 group-hover:text-[#06060a] transition-colors duration-[400ms]">
-                {txPending ? 'Confirm in Wallet...' : isConfirming ? 'Confirming...' : loading ? 'Preparing...' : '\u2726 BREED \u2726'}
+                {txPending ? 'Confirm in Wallet...' : isConfirming ? 'Confirming...' : syncing ? 'Syncing...' : loading ? 'Preparing...' : '\u2726 BREED \u2726'}
               </span>
             </button>
           )}

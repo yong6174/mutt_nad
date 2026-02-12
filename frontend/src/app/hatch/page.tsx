@@ -4,13 +4,14 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { useGenesisHatch } from '@/hooks/useGenesisHatch';
 import { useHasGenesis } from '@/hooks/useHasGenesis';
+import { useSync } from '@/hooks/useSync';
 import { WalletGuard } from '@/components/WalletGuard';
 import { supabase } from '@/lib/db';
 import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
 import Link from 'next/link';
 import type { BloodlineGrade } from '@/types';
 
-type HatchState = 'input' | 'signing' | 'confirming' | 'hatching' | 'result';
+type HatchState = 'input' | 'signing' | 'confirming' | 'syncing' | 'hatching' | 'result';
 
 interface HatchResult {
   personalityType: string;
@@ -22,7 +23,8 @@ interface HatchResult {
 export default function HatchPage() {
   const { address, isConnected } = useAccount();
   const { data: alreadyHatched } = useHasGenesis(address);
-  const { hatch, isPending: txPending, isConfirming, isSuccess, error: txError } = useGenesisHatch();
+  const { hatch, isPending: txPending, isConfirming, isSuccess, tokenId: onChainTokenId, error: txError } = useGenesisHatch();
+  const { sync, syncing, synced } = useSync();
 
   const [identity, setIdentity] = useState('');
   const [state, setState] = useState<HatchState>('input');
@@ -61,12 +63,20 @@ export default function HatchPage() {
     setTimeout(() => showResultCard(), 8000);
   }, [showResultCard]);
 
-  // Watch tx confirmation → trigger video
+  // Watch tx confirmation → sync → trigger video
   useEffect(() => {
-    if (isSuccess && resultRef.current) {
+    if (isSuccess && onChainTokenId && resultRef.current && !synced && !syncing) {
+      resultRef.current.tokenId = onChainTokenId;
+      setState('syncing');
+      sync(address!, onChainTokenId, 'hatch');
+    }
+  }, [isSuccess, onChainTokenId, address, sync, synced, syncing]);
+
+  useEffect(() => {
+    if (synced && resultRef.current) {
       playHatchVideo();
     }
-  }, [isSuccess, playHatchVideo]);
+  }, [synced, playHatchVideo]);
 
   useEffect(() => {
     if (txError) {
@@ -197,17 +207,17 @@ export default function HatchPage() {
         </div>
       </div>
 
-      {/* ===== STATE 2: Signing / Confirming TX (text only, no egg) ===== */}
+      {/* ===== STATE 2: Signing / Confirming / Syncing TX ===== */}
       <div
         className={`flex-col items-center justify-center min-h-[70vh] px-6 py-10 ${
-          state === 'signing' || state === 'confirming' || (txPending || isConfirming) ? 'flex' : 'hidden'
+          state === 'signing' || state === 'confirming' || state === 'syncing' || (txPending || isConfirming || syncing) ? 'flex' : 'hidden'
         }`}
       >
         <p className="font-display text-xl tracking-[6px] uppercase mb-4" style={{ color: '#c8a84e' }}>
-          {txPending ? 'Confirm in Wallet...' : 'Confirming Transaction...'}
+          {txPending ? 'Confirm in Wallet...' : syncing || state === 'syncing' ? 'Syncing...' : 'Confirming Transaction...'}
         </p>
         <p className="text-sm" style={{ color: '#6a5f4a' }}>
-          {txPending ? 'Please approve the transaction in your wallet' : 'Waiting for on-chain confirmation'}
+          {txPending ? 'Please approve the transaction in your wallet' : syncing || state === 'syncing' ? 'Saving your Mutt to the database' : 'Waiting for on-chain confirmation'}
         </p>
       </div>
 

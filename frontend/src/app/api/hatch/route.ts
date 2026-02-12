@@ -75,10 +75,17 @@ export async function POST(req: NextRequest) {
     let traits: { color: string; expression: string; accessory: string };
 
     if (identity && identity.trim().length > 0) {
-      const result = await analyzeIdentity(identity);
-      mbti = result.mbti;
-      description = result.description;
-      traits = result.traits;
+      try {
+        const result = await analyzeIdentity(identity);
+        mbti = result.mbti;
+        description = result.description;
+        traits = result.traits;
+      } catch {
+        // LLM unavailable — fallback to random
+        mbti = randomMbti();
+        description = 'A mysterious creature born from pure chaos';
+        traits = { color: 'gray', expression: 'curious', accessory: 'none' };
+      }
     } else {
       mbti = randomMbti();
       description = 'A mysterious creature born from pure chaos';
@@ -106,32 +113,21 @@ export async function POST(req: NextRequest) {
     // Sign
     const signature = await signHatch(addr, personalityIndex, nonce);
 
-    // Save to DB
-    const { error: dbError } = await supabaseAdmin.from('mutts').insert({
-      token_id: Date.now(), // placeholder, updated after on-chain confirm
-      personality: mbti,
+    // Save to pending_actions (will be committed to mutts via /api/sync after on-chain tx)
+    const { error: dbError } = await supabaseAdmin.from('pending_actions').insert({
+      nonce: Number(nonce),
+      address: addr,
+      action: 'hatch',
+      personality: personalityIndex,
+      personality_type: mbti,
       personality_desc: description,
+      traits,
       identity: identity || null,
-      bloodline: 'mutt',
-      color: traits.color,
-      expression: traits.expression,
-      accessory: traits.accessory,
-      image: `/images/${mbti.toLowerCase()}.png`,
-      parent_a: 0,
-      parent_b: 0,
-      breeder: addr,
     });
 
     if (dbError) {
-      console.error('DB insert error:', dbError);
+      console.error('pending_actions insert error:', dbError);
     }
-
-    // Log activity
-    await supabaseAdmin.from('activities').insert({
-      type: 'hatch',
-      actor: addr,
-      detail: { personality: mbti },
-    });
 
     return NextResponse.json({
       personality: personalityIndex,

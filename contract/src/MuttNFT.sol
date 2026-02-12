@@ -17,6 +17,9 @@ contract MuttNFT is ERC1155, EIP712, Ownable {
         address breeder;
         uint256 breedCost;       // MUTT ERC-20 token amount
         uint256 lastBreedTime;
+        uint256 mintCost;        // MUTT ERC-20 per mint (0 = free)
+        uint256 maxSupply;       // 0 = unlimited
+        uint256 totalSupply;     // starts at 1 (breeder's copy)
     }
 
     IERC20 public muttToken;
@@ -38,6 +41,8 @@ contract MuttNFT is ERC1155, EIP712, Ownable {
     event GenesisHatch(uint256 indexed tokenId, address indexed owner, uint8 personality);
     event Bred(uint256 indexed newTokenId, uint256 parentA, uint256 parentB, address indexed breeder);
     event BreedCostSet(uint256 indexed tokenId, uint256 cost);
+    event Minted(uint256 indexed tokenId, address indexed minter, uint256 newTotalSupply);
+    event MintConfigSet(uint256 indexed tokenId, uint256 mintCost, uint256 maxSupply);
 
     constructor(address _serverSigner, address _platformWallet, address _muttToken)
         ERC1155("")
@@ -75,7 +80,10 @@ contract MuttNFT is ERC1155, EIP712, Ownable {
             parentB: 0,
             breeder: msg.sender,
             breedCost: 0,
-            lastBreedTime: 0
+            lastBreedTime: 0,
+            mintCost: 0,
+            maxSupply: 0,
+            totalSupply: 1
         });
 
         _mint(msg.sender, tokenId, 1, "");
@@ -128,11 +136,35 @@ contract MuttNFT is ERC1155, EIP712, Ownable {
             parentB: parentB,
             breeder: msg.sender,
             breedCost: 0,
-            lastBreedTime: 0
+            lastBreedTime: 0,
+            mintCost: 0,
+            maxSupply: 0,
+            totalSupply: 1
         });
 
         _mint(msg.sender, tokenId, 1, "");
         emit Bred(tokenId, parentA, parentB, msg.sender);
+    }
+
+    // ──────────────────────────────────────────────
+    //  Mint (adopt a copy of an existing Mutt)
+    // ──────────────────────────────────────────────
+
+    function mint(uint256 tokenId) external {
+        MuttData storage data = mutts[tokenId];
+        require(data.breeder != address(0), "Token not exists");
+        require(data.maxSupply == 0 || data.totalSupply < data.maxSupply, "Sold out");
+
+        if (data.mintCost > 0) {
+            uint256 platformFee = (data.mintCost * platformFeePercent) / 100;
+            uint256 breederFee = data.mintCost - platformFee;
+            require(muttToken.transferFrom(msg.sender, data.breeder, breederFee), "Breeder fee failed");
+            require(muttToken.transferFrom(msg.sender, platformWallet, platformFee), "Platform fee failed");
+        }
+
+        data.totalSupply++;
+        _mint(msg.sender, tokenId, 1, "");
+        emit Minted(tokenId, msg.sender, data.totalSupply);
     }
 
     // ──────────────────────────────────────────────
@@ -143,6 +175,15 @@ contract MuttNFT is ERC1155, EIP712, Ownable {
         require(mutts[tokenId].breeder == msg.sender, "Not breeder");
         mutts[tokenId].breedCost = cost;
         emit BreedCostSet(tokenId, cost);
+    }
+
+    function setMintConfig(uint256 tokenId, uint256 _mintCost, uint256 _maxSupply) external {
+        MuttData storage data = mutts[tokenId];
+        require(data.breeder == msg.sender, "Not breeder");
+        require(_maxSupply == 0 || _maxSupply >= data.totalSupply, "Max below current supply");
+        data.mintCost = _mintCost;
+        data.maxSupply = _maxSupply;
+        emit MintConfigSet(tokenId, _mintCost, _maxSupply);
     }
 
     function getMutt(uint256 tokenId) external view returns (MuttData memory) {

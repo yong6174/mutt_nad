@@ -52,10 +52,31 @@ export const MUTT_NFT_ABI = [
           { name: 'breeder', type: 'address' },
           { name: 'breedCost', type: 'uint256' },
           { name: 'lastBreedTime', type: 'uint256' },
+          { name: 'mintCost', type: 'uint256' },
+          { name: 'maxSupply', type: 'uint256' },
+          { name: 'totalSupply', type: 'uint256' },
         ],
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'mint',
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'setMintConfig',
+    inputs: [
+      { name: 'tokenId', type: 'uint256' },
+      { name: '_mintCost', type: 'uint256' },
+      { name: '_maxSupply', type: 'uint256' },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -113,6 +134,24 @@ export const MUTT_NFT_ABI = [
     inputs: [
       { name: 'tokenId', type: 'uint256', indexed: true },
       { name: 'cost', type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'Minted',
+    inputs: [
+      { name: 'tokenId', type: 'uint256', indexed: true },
+      { name: 'minter', type: 'address', indexed: true },
+      { name: 'newTotalSupply', type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'MintConfigSet',
+    inputs: [
+      { name: 'tokenId', type: 'uint256', indexed: true },
+      { name: 'mintCost', type: 'uint256', indexed: false },
+      { name: 'maxSupply', type: 'uint256', indexed: false },
     ],
   },
 ] as const;

@@ -36,6 +36,9 @@ export interface MuttOnChain {
   breeder: `0x${string}`;
   breedCost: bigint;          // wei
   lastBreedTime: bigint;      // unix timestamp
+  mintCost: bigint;           // MUTT ERC-20 per mint (0 = free)
+  maxSupply: bigint;          // 0 = unlimited
+  totalSupply: bigint;        // current supply count
 }
 
 // Off-chain data (read from DB)

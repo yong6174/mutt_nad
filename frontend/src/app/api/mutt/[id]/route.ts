@@ -24,6 +24,9 @@ const MUTT_ABI = [
         { name: 'breeder', type: 'address' },
         { name: 'breedCost', type: 'uint256' },
         { name: 'lastBreedTime', type: 'uint256' },
+        { name: 'mintCost', type: 'uint256' },
+        { name: 'maxSupply', type: 'uint256' },
+        { name: 'totalSupply', type: 'uint256' },
       ],
     }],
   },
@@ -92,6 +95,9 @@ export async function GET(
           breeder: data.breeder,
           breedCost: data.breedCost.toString(),
           lastBreedTime: Number(data.lastBreedTime),
+          mintCost: data.mintCost.toString(),
+          maxSupply: Number(data.maxSupply),
+          totalSupply: Number(data.totalSupply),
         };
       }
     } catch {

@@ -7,6 +7,9 @@ import Link from 'next/link';
 import { RatingDisplay } from '@/components/rating/RatingDisplay';
 import { StarRating } from '@/components/rating/StarRating';
 import { useSetBreedCost } from '@/hooks/useSetBreedCost';
+import { useMint } from '@/hooks/useMint';
+import { useSync } from '@/hooks/useSync';
+import { useApproveBreedToken, useBreedTokenAllowance } from '@/hooks/useBreed';
 import type { BloodlineGrade } from '@/types';
 
 interface MuttData {
@@ -24,6 +27,9 @@ interface MuttData {
   onChain?: {
     breedCost: string;
     lastBreedTime: number;
+    mintCost: string;
+    maxSupply: number;
+    totalSupply: number;
   };
 }
 
@@ -43,6 +49,22 @@ export default function MuttProfilePage() {
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [breedCostInput, setBreedCostInput] = useState('');
   const { setBreedCost, isPending: costPending, isSuccess: costSuccess } = useSetBreedCost();
+  const { mint, isPending: mintPending, isConfirming: mintConfirming, isSuccess: mintSuccess } = useMint();
+  const { sync, syncing, synced: mintSynced } = useSync();
+  const { approve, isPending: approvePending, isSuccess: approveSuccess } = useApproveBreedToken();
+  const { data: allowance, refetch: refetchAllowance } = useBreedTokenAllowance(address);
+
+  // After approve tx succeeds, refetch allowance
+  useEffect(() => {
+    if (approveSuccess) refetchAllowance();
+  }, [approveSuccess, refetchAllowance]);
+
+  // After mint tx confirmed → sync
+  useEffect(() => {
+    if (mintSuccess && mutt && address && !mintSynced && !syncing) {
+      sync(address, mutt.tokenId, 'mint');
+    }
+  }, [mintSuccess, mutt, address, mintSynced, syncing, sync]);
 
   useEffect(() => {
     const fetchMutt = async () => {
@@ -274,6 +296,23 @@ export default function MuttProfilePage() {
           )}
         </div>
 
+        {/* Mint Section */}
+        {mutt.onChain && (
+          <MintSection
+            mutt={mutt}
+            address={address}
+            allowance={allowance as bigint | undefined}
+            mint={mint}
+            approve={approve}
+            mintPending={mintPending}
+            mintConfirming={mintConfirming}
+            mintSuccess={mintSuccess}
+            mintSynced={mintSynced}
+            syncing={syncing}
+            approvePending={approvePending}
+          />
+        )}
+
         {/* Actions */}
         <div className="flex gap-3">
           <Link
@@ -293,6 +332,103 @@ export default function MuttProfilePage() {
           </Link>
         </div>
       </div>
+    </div>
+  );
+}
+
+function MintSection({
+  mutt,
+  address,
+  allowance,
+  mint,
+  approve,
+  mintPending,
+  mintConfirming,
+  mintSuccess,
+  mintSynced,
+  syncing,
+  approvePending,
+}: {
+  mutt: MuttData;
+  address?: `0x${string}`;
+  allowance?: bigint;
+  mint: (tokenId: number) => void;
+  approve: () => void;
+  mintPending: boolean;
+  mintConfirming: boolean;
+  mintSuccess: boolean;
+  mintSynced: boolean;
+  syncing: boolean;
+  approvePending: boolean;
+}) {
+  const oc = mutt.onChain!;
+  const mintCostBn = BigInt(oc.mintCost || '0');
+  const isSoldOut = oc.maxSupply > 0 && oc.totalSupply >= oc.maxSupply;
+  const needsApproval = mintCostBn > 0n && (allowance ?? 0n) < mintCostBn;
+  const isOwner = address?.toLowerCase() === mutt.breeder.toLowerCase();
+  const supplyLabel = oc.maxSupply === 0 ? `${oc.totalSupply}` : `${oc.totalSupply} / ${oc.maxSupply}`;
+  const progressPct = oc.maxSupply > 0 ? Math.min((oc.totalSupply / oc.maxSupply) * 100, 100) : 0;
+
+  return (
+    <div
+      className="p-5"
+      style={{ border: '1px solid rgba(200,168,78,0.15)', background: 'rgba(12,11,8,0.8)' }}
+    >
+      <h3 className="font-display text-xs text-gold tracking-[2px] uppercase mb-3">Adopt (Mint)</h3>
+
+      <div className="flex justify-between mb-2">
+        <span className="text-xs" style={{ color: '#6a5f4a' }}>Mint Cost</span>
+        <span className="text-sm text-gold">
+          {mintCostBn === 0n ? 'Free' : `${(Number(mintCostBn) / 1e18).toFixed(2)} MUTT`}
+        </span>
+      </div>
+
+      <div className="flex justify-between mb-2">
+        <span className="text-xs" style={{ color: '#6a5f4a' }}>Supply</span>
+        <span className="text-xs" style={{ color: '#8a7d65' }}>
+          {supplyLabel}{oc.maxSupply === 0 ? ' (unlimited)' : ''}
+        </span>
+      </div>
+
+      {oc.maxSupply > 0 && (
+        <div className="w-full h-1.5 mb-3" style={{ background: 'rgba(200,168,78,0.1)' }}>
+          <div
+            className="h-full transition-all duration-300"
+            style={{ width: `${progressPct}%`, background: isSoldOut ? '#cd7f32' : '#c8a84e' }}
+          />
+        </div>
+      )}
+
+      {mintSuccess && mintSynced ? (
+        <p className="text-sm text-center py-2" style={{ color: '#7dba7d' }}>
+          Minted successfully!
+        </p>
+      ) : isSoldOut ? (
+        <p className="text-sm text-center py-2" style={{ color: '#cd7f32' }}>Sold out</p>
+      ) : isOwner ? (
+        <p className="text-xs text-center py-2" style={{ color: '#6a5f4a' }}>
+          You are the breeder of this Mutt
+        </p>
+      ) : needsApproval ? (
+        <button
+          onClick={approve}
+          disabled={approvePending}
+          className="w-full py-2.5 border border-gold text-gold font-display text-xs tracking-[2px] uppercase disabled:opacity-30 hover:bg-gold hover:text-[#06060a] transition-colors"
+        >
+          {approvePending ? 'Approving...' : 'Approve MUTT'}
+        </button>
+      ) : (
+        <button
+          onClick={() => mint(mutt.tokenId)}
+          disabled={mintPending || mintConfirming || syncing}
+          className="w-full py-2.5 border-2 border-gold text-gold font-display text-xs tracking-[2px] uppercase disabled:opacity-30 relative overflow-hidden group"
+        >
+          <span className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-[400ms] z-0" />
+          <span className="relative z-10 group-hover:text-[#06060a] transition-colors duration-[400ms]">
+            {mintPending ? 'Confirm in Wallet...' : mintConfirming ? 'Confirming...' : syncing ? 'Syncing...' : 'Mint (Adopt)'}
+          </span>
+        </button>
+      )}
     </div>
   );
 }

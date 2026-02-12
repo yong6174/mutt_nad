@@ -68,15 +68,22 @@ export async function POST(req: NextRequest) {
 
     if (hasIdentityA || hasIdentityB) {
       // At least one parent has identity — use LLM
-      const result = await analyzeBreeding(
-        pA.identity || '',
-        pA.personality,
-        pB.identity || '',
-        pB.personality
-      );
-      mbti = result.mbti;
-      description = result.description;
-      traits = result.traits;
+      try {
+        const result = await analyzeBreeding(
+          pA.identity || '',
+          pA.personality,
+          pB.identity || '',
+          pB.personality
+        );
+        mbti = result.mbti;
+        description = result.description;
+        traits = result.traits;
+      } catch {
+        // LLM unavailable — fallback to genetic
+        mbti = mbtiGeneticFallback(pA.personality, pB.personality);
+        description = 'Born from the union of two wandering souls';
+        traits = { color: 'gray', expression: 'neutral', accessory: 'none' };
+      }
     } else {
       // Both empty — genetic fallback
       mbti = mbtiGeneticFallback(pA.personality, pB.personality);
@@ -111,29 +118,18 @@ export async function POST(req: NextRequest) {
       nonce
     );
 
-    // Save offspring to DB (token_id placeholder, updated on-chain)
-    const newTokenId = Date.now();
-    await supabaseAdmin.from('mutts').insert({
-      token_id: newTokenId,
-      personality: mbti,
+    // Save to pending_actions (will be committed to mutts via /api/sync after on-chain tx)
+    await supabaseAdmin.from('pending_actions').insert({
+      nonce: Number(nonce),
+      address: addr,
+      action: 'breed',
+      personality: personalityIndex,
+      personality_type: mbti,
       personality_desc: description,
+      traits,
       identity: null,
-      bloodline: 'mutt',
-      color: traits.color,
-      expression: traits.expression,
-      accessory: traits.accessory,
-      image: `/images/${mbti.toLowerCase()}.png`,
       parent_a: parentA,
       parent_b: parentB,
-      breeder: addr,
-    });
-
-    // Log activity
-    await supabaseAdmin.from('activities').insert({
-      type: 'breed',
-      actor: addr,
-      token_id: newTokenId,
-      detail: { parentA, parentB, personality: mbti },
     });
 
     return NextResponse.json({

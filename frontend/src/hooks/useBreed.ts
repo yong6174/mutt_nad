@@ -1,12 +1,33 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
+import { decodeEventLog } from 'viem';
 import { MUTT_NFT_ABI, ERC20_ABI } from '@/lib/contracts/abi';
 import { MUTT_NFT_ADDRESS, MUTT_TOKEN_ADDRESS } from '@/lib/chain';
 
 export function useBreed() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const { isLoading: isConfirming, isSuccess, data: receipt } = useWaitForTransactionReceipt({ hash });
+
+  const tokenId = useMemo(() => {
+    if (!receipt?.logs) return undefined;
+    for (const log of receipt.logs) {
+      try {
+        const decoded = decodeEventLog({
+          abi: MUTT_NFT_ABI,
+          data: log.data,
+          topics: log.topics,
+        });
+        if (decoded.eventName === 'Bred') {
+          return Number((decoded.args as { newTokenId: bigint }).newTokenId);
+        }
+      } catch {
+        // not our event
+      }
+    }
+    return undefined;
+  }, [receipt]);
 
   const breed = (
     parentA: number,
@@ -19,11 +40,11 @@ export function useBreed() {
       address: MUTT_NFT_ADDRESS,
       abi: MUTT_NFT_ABI,
       functionName: 'breed',
-      args: [BigInt(parentA), BigInt(parentB), personality, signature], // parentA/B are dynamic so BigInt() needed
+      args: [BigInt(parentA), BigInt(parentB), personality, signature],
     });
   };
 
-  return { breed, hash, isPending, isConfirming, isSuccess, error };
+  return { breed, hash, isPending, isConfirming, isSuccess, tokenId, error };
 }
 
 /** Hook to approve MUTT ERC-20 token spend for the MuttNFT contract */

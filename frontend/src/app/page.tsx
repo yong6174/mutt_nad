@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { supabase } from '@/lib/db';
+import { isMockMode } from '@/lib/mock';
 
 const MOCK_FEED = [
   { tokenId: 42, emoji: '\u{1F415}', personality: 'ENFP', bloodline: 'Mutt', icon: '\u{1F415}' },
@@ -20,6 +22,7 @@ export default function LandingPage() {
   const [particles, setParticles] = useState<
     Array<{ id: number; left: string; dur: string; delay: string; size: string }>
   >([]);
+  const [stats, setStats] = useState({ total: 0, purebloods: 0, sacred: 0 });
 
   useEffect(() => {
     setParticles(
@@ -31,6 +34,22 @@ export default function LandingPage() {
         size: `${1 + Math.random() * 2}px`,
       }))
     );
+
+    // Fetch real stats
+    if (!isMockMode()) {
+      (async () => {
+        const [totalRes, pureRes, sacredRes] = await Promise.all([
+          supabase.from('mutts').select('token_id', { count: 'exact', head: true }),
+          supabase.from('mutts').select('token_id', { count: 'exact', head: true }).eq('bloodline', 'pureblood'),
+          supabase.from('mutts').select('token_id', { count: 'exact', head: true }).eq('bloodline', 'sacred28'),
+        ]);
+        setStats({
+          total: totalRes.count ?? 0,
+          purebloods: pureRes.count ?? 0,
+          sacred: sacredRes.count ?? 0,
+        });
+      })();
+    }
   }, []);
 
   const handleActivate = useCallback(() => {
@@ -291,9 +310,9 @@ export default function LandingPage() {
           style={{ borderTop: '1px solid rgba(200,168,78,0.08)' }}
         >
           {[
-            { num: '1,247', label: 'Total Mutts' },
-            { num: '83', label: 'Purebloods' },
-            { num: '28', label: 'Sacred Houses' },
+            { num: stats.total > 0 ? stats.total.toLocaleString() : '0', label: 'Total Mutts' },
+            { num: stats.purebloods > 0 ? stats.purebloods.toLocaleString() : '0', label: 'Purebloods' },
+            { num: stats.sacred > 0 ? stats.sacred.toLocaleString() : '0', label: 'Sacred Houses' },
           ].map((s) => (
             <div key={s.label} className="text-center">
               <div className="font-display text-4xl text-gold font-normal">{s.num}</div>
