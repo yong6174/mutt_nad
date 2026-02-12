@@ -10,7 +10,7 @@ import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
 import Link from 'next/link';
 import type { BloodlineGrade } from '@/types';
 
-type HatchState = 'input' | 'ready' | 'hatching' | 'signing' | 'confirming' | 'result';
+type HatchState = 'input' | 'signing' | 'confirming' | 'hatching' | 'result';
 
 interface HatchResult {
   personalityType: string;
@@ -43,13 +43,30 @@ export default function HatchPage() {
     }, 400);
   }, []);
 
-  // Watch tx confirmation
-  useEffect(() => {
-    if (isSuccess && resultRef.current) {
-      setResult(resultRef.current);
+  // After tx confirmed → play hatch video
+  const playHatchVideo = useCallback(() => {
+    setState('hatching');
+    setResult(resultRef.current);
+
+    const video = videoRef.current;
+    if (video) {
+      video.currentTime = 0;
+      video.onended = () => showResultCard();
+      video.play().catch(() => showResultCard());
+    } else {
       showResultCard();
     }
-  }, [isSuccess, showResultCard]);
+
+    // 8s fallback
+    setTimeout(() => showResultCard(), 8000);
+  }, [showResultCard]);
+
+  // Watch tx confirmation → trigger video
+  useEffect(() => {
+    if (isSuccess && resultRef.current) {
+      playHatchVideo();
+    }
+  }, [isSuccess, playHatchVideo]);
 
   useEffect(() => {
     if (txError) {
@@ -58,16 +75,16 @@ export default function HatchPage() {
     }
   }, [txError]);
 
-  // Step 1: Submit identity → API call → show paused video
+  // Submit identity → API call → submit tx immediately
   const handleHatch = async () => {
-    if (!isConnected || !address) {
+    if (!isMockMode() && (!isConnected || !address)) {
       setError('Please connect your wallet first');
       return;
     }
     setError('');
     setShowBurst(false);
     setCardVisible(false);
-    setState('ready');
+    setState('signing');
 
     try {
       const res = await fetch('/api/hatch', {
@@ -93,40 +110,19 @@ export default function HatchPage() {
         personality: data.personality,
         signature: data.signature as `0x${string}`,
       };
+
+      // Mock mode: skip contract, go straight to video
+      if (isMockMode()) {
+        playHatchVideo();
+        return;
+      }
+
+      // Submit tx right away
+      hatch(data.personality, data.signature as `0x${string}`);
     } catch {
       setError('Network error');
       setState('input');
     }
-  };
-
-  // Step 2: User clicks paused video → play → submit tx
-  const handlePlay = () => {
-    if (state !== 'ready') return;
-    setState('hatching');
-
-    const video = videoRef.current;
-    const onVideoEnd = () => {
-      if (sigRef.current) {
-        setState('signing');
-        hatch(sigRef.current.personality, sigRef.current.signature);
-      }
-    };
-
-    if (video) {
-      video.currentTime = 0;
-      video.onended = onVideoEnd;
-      video.play().catch(onVideoEnd);
-    } else {
-      onVideoEnd();
-    }
-
-    // 8s fallback
-    setTimeout(() => {
-      if (sigRef.current) {
-        setState('signing');
-        hatch(sigRef.current.personality, sigRef.current.signature);
-      }
-    }, 8000);
   };
 
   // Already hatched — show genesis mutt mini card + CTAs
@@ -201,16 +197,27 @@ export default function HatchPage() {
         </div>
       </div>
 
-      {/* ===== STATE 2: Ready (paused video) + Hatching (playing) ===== */}
+      {/* ===== STATE 2: Signing / Confirming TX (text only, no egg) ===== */}
       <div
         className={`flex-col items-center justify-center min-h-[70vh] px-6 py-10 ${
-          state === 'ready' || state === 'hatching' ? 'flex' : 'hidden'
+          state === 'signing' || state === 'confirming' || (txPending || isConfirming) ? 'flex' : 'hidden'
         }`}
       >
-        <div
-          className="w-[280px] h-[360px] relative overflow-hidden rounded-2xl cursor-pointer mb-6"
-          onClick={handlePlay}
-        >
+        <p className="font-display text-xl tracking-[6px] uppercase mb-4" style={{ color: '#c8a84e' }}>
+          {txPending ? 'Confirm in Wallet...' : 'Confirming Transaction...'}
+        </p>
+        <p className="text-sm" style={{ color: '#6a5f4a' }}>
+          {txPending ? 'Please approve the transaction in your wallet' : 'Waiting for on-chain confirmation'}
+        </p>
+      </div>
+
+      {/* ===== STATE 2.5: Hatching video (plays after tx confirmed) ===== */}
+      <div
+        className={`flex-col items-center justify-center min-h-[70vh] px-6 py-10 ${
+          state === 'hatching' ? 'flex' : 'hidden'
+        }`}
+      >
+        <div className="w-[280px] h-[360px] relative overflow-hidden rounded-2xl mb-6">
           <video
             ref={videoRef}
             className="w-[280px] absolute top-0 left-0"
@@ -221,44 +228,13 @@ export default function HatchPage() {
           >
             <source src="/videos/hatch.mp4" type="video/mp4" />
           </video>
-
-          {state === 'ready' && (
-            <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/30 transition-opacity">
-              <div className="text-center">
-                <div className="text-5xl mb-3">{'\u{1F95A}'}</div>
-                <p
-                  className="font-display text-sm tracking-[3px] uppercase"
-                  style={{ color: '#c8a84e', animation: 'pulse-hint 2s ease-in-out infinite' }}
-                >
-                  Tap to Hatch
-                </p>
-              </div>
-            </div>
-          )}
         </div>
 
         <p
           className="font-display text-sm tracking-[3px] uppercase"
           style={{ color: '#6a5f4a', animation: 'pulse-text 1.5s ease-in-out infinite' }}
         >
-          {state === 'ready' ? 'Ready...' : 'Hatching...'}
-        </p>
-      </div>
-
-      {/* ===== STATE 2.5: Signing / Confirming TX ===== */}
-      <div
-        className={`flex-col items-center justify-center min-h-[70vh] px-6 py-10 ${
-          state === 'signing' || state === 'confirming' || (txPending || isConfirming) ? 'flex' : 'hidden'
-        }`}
-      >
-        <div className="text-6xl mb-6" style={{ animation: 'pulse-text 1.5s ease-in-out infinite' }}>
-          {'\u{1F95A}'}
-        </div>
-        <p className="font-display text-sm tracking-[3px] uppercase mb-2" style={{ color: '#c8a84e' }}>
-          {txPending ? 'Confirm in Wallet...' : 'Confirming Transaction...'}
-        </p>
-        <p className="text-xs" style={{ color: '#6a5f4a' }}>
-          {txPending ? 'Please approve the transaction in your wallet' : 'Waiting for on-chain confirmation'}
+          Hatching...
         </p>
       </div>
 

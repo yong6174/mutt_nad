@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useBreed, useApproveBreedToken, useBreedTokenAllowance, useBreedTokenBalance } from '@/hooks/useBreed';
 import { useCooldown } from '@/hooks/useCooldown';
 import { WalletGuard } from '@/components/WalletGuard';
+import { isMockMode } from '@/lib/mock';
 import type { BloodlineGrade } from '@/types';
 
 interface MuttSlot {
@@ -119,7 +120,7 @@ function BreedContent() {
   };
 
   const handleBreed = async () => {
-    if (!isConnected || !address) {
+    if (!isMockMode() && (!isConnected || !address)) {
       setError('Please connect your wallet first');
       return;
     }
@@ -132,7 +133,7 @@ function BreedContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          address,
+          address: address || '0x0000000000000000000000000000000000000000',
           parentA: myMutt.tokenId,
           parentB: partner.tokenId,
         }),
@@ -141,6 +142,17 @@ function BreedContent() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Breeding failed');
+        setLoading(false);
+        return;
+      }
+
+      // Mock mode: skip contract, show result directly
+      if (isMockMode()) {
+        setResult({
+          personalityType: data.personalityType,
+          personalityDesc: data.personalityDesc,
+          traits: data.traits,
+        });
         setLoading(false);
         return;
       }
