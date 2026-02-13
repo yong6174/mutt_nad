@@ -121,7 +121,7 @@ export default function MuttProfilePage() {
   }
 
   const bl = BLOODLINE_DISPLAY[mutt.bloodline];
-  const isOwner = address?.toLowerCase() === mutt.breeder.toLowerCase();
+  const isBreeder = address?.toLowerCase() === mutt.breeder.toLowerCase();
   const breedCostDisplay = mutt.onChain?.breedCost
     ? (Number(mutt.onChain.breedCost) / 1e18).toFixed(4)
     : '0';
@@ -204,12 +204,12 @@ export default function MuttProfilePage() {
           <h3 className="font-display text-xs text-gold tracking-[2px] uppercase mb-3">Reputation</h3>
           <RatingDisplay avgRating={mutt.avgRating} totalReviews={mutt.totalReviews} />
 
-          {!isOwner && ratingSubmitted && (
+          {!isBreeder && ratingSubmitted && (
             <p className="mt-4 text-xs" style={{ color: '#8a7d65' }}>
               You rated {'\u2605'}{ratingScore}
             </p>
           )}
-          {!isOwner && !ratingSubmitted && (
+          {!isBreeder && !ratingSubmitted && (
             <div className="mt-4">
               <p className="text-xs mb-2" style={{ color: '#6a5f4a' }}>Rate this Mutt:</p>
               <div className="flex items-center gap-2">
@@ -286,7 +286,7 @@ export default function MuttProfilePage() {
             <span className="text-sm text-gold">{breedCostDisplay} MUTT</span>
           </div>
 
-          {isOwner && (
+          {isBreeder && (
             <div className="flex items-center gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(200,168,78,0.08)' }}>
               <input
                 className="flex-1 px-3 py-1.5 text-xs focus:outline-none"
@@ -385,7 +385,7 @@ function MintSection({
   const isSoldOut = oc.maxSupply > 0 && oc.totalSupply >= oc.maxSupply;
   const needsApproval = mintCostBn > 0n && (allowance ?? 0n) < mintCostBn;
   const insufficientBalance = mintCostBn > 0n && (tokenBalance ?? 0n) < mintCostBn;
-  const isOwner = address?.toLowerCase() === mutt.breeder.toLowerCase();
+  const isBreeder = address?.toLowerCase() === mutt.breeder.toLowerCase();
   const supplyLabel = oc.maxSupply === 0 ? `${oc.totalSupply}` : `${oc.totalSupply} / ${oc.maxSupply}`;
   const progressPct = oc.maxSupply > 0 ? Math.min((oc.totalSupply / oc.maxSupply) * 100, 100) : 0;
 
@@ -419,7 +419,7 @@ function MintSection({
         </div>
       )}
 
-      {isOwner && (
+      {isBreeder && (
         <p className="text-[10px] text-center mb-2" style={{ color: '#6a5f4a' }}>
           You are the breeder — 90% fee returns to you
         </p>
