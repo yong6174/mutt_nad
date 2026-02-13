@@ -5,13 +5,17 @@ import { activeChain, MUTT_NFT_ADDRESS } from '../chain';
 const NETWORK = process.env.NEXT_PUBLIC_NETWORK || 'testnet';
 const isMainnet = NETWORK === 'mainnet';
 
-const SERVER_KEY = isMainnet
-  ? process.env.MAINNET_SERVER_PRIVATE_KEY
-  : process.env.TESTNET_SERVER_PRIVATE_KEY;
+function getServerAccount() {
+  const key = isMainnet
+    ? process.env.MAINNET_SERVER_PRIVATE_KEY
+    : process.env.TESTNET_SERVER_PRIVATE_KEY;
 
-const serverAccount = privateKeyToAccount(
-  (SERVER_KEY || '0x0000000000000000000000000000000000000000000000000000000000000001') as Hex
-);
+  if (!key) {
+    throw new Error('SERVER_PRIVATE_KEY not configured');
+  }
+
+  return privateKeyToAccount(key as Hex);
+}
 
 const DOMAIN = {
   name: 'MuttNFT',
@@ -39,6 +43,7 @@ const BREED_TYPES = {
 } as const;
 
 export async function signHatch(to: `0x${string}`, personality: number, nonce: bigint) {
+  const serverAccount = getServerAccount();
   return serverAccount.signTypedData({
     domain: DOMAIN,
     types: HATCH_TYPES,
@@ -54,6 +59,7 @@ export async function signBreed(
   personality: number,
   nonce: bigint
 ) {
+  const serverAccount = getServerAccount();
   return serverAccount.signTypedData({
     domain: DOMAIN,
     types: BREED_TYPES,
