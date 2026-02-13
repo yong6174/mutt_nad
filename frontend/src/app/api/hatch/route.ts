@@ -113,6 +113,9 @@ export async function POST(req: NextRequest) {
     // Sign
     const signature = await signHatch(addr, personalityIndex, nonce);
 
+    // Delete stale pending_actions for same address+action (prevent duplicates)
+    await supabaseAdmin.from('pending_actions').delete().eq('address', addr).eq('action', 'hatch');
+
     // Save to pending_actions (will be committed to mutts via /api/sync after on-chain tx)
     const { error: dbError } = await supabaseAdmin.from('pending_actions').insert({
       nonce: Number(nonce),

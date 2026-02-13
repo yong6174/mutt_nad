@@ -38,25 +38,51 @@ function buildRoute(
   side: 'A' | 'B',
   getMutt: (id: number) => MuttNode | null
 ): PurebloodRoute {
-  const path: MuttNode[] = [child];
-
   const parentId = side === 'A' ? child.parentA : child.parentB;
-  if (parentId > 0) {
-    const parent = getMutt(parentId);
-    if (parent) {
-      path.push(parent);
-      if (parent.parentA > 0) {
-        const grandparent = getMutt(parent.parentA);
-        if (grandparent) path.push(grandparent);
+  if (parentId <= 0) {
+    return makeRoute([child]);
+  }
+
+  const parent = getMutt(parentId);
+  if (!parent) {
+    return makeRoute([child]);
+  }
+
+  // Try both grandparent sides — pick the better route
+  const candidates: PurebloodRoute[] = [];
+
+  for (const gpId of [parent.parentA, parent.parentB]) {
+    if (gpId > 0) {
+      const gp = getMutt(gpId);
+      if (gp) {
+        candidates.push(makeRoute([child, parent, gp]));
+        continue;
       }
+    }
+    // No grandparent on this side — 2-node route
+    if (candidates.length === 0) {
+      candidates.push(makeRoute([child, parent]));
     }
   }
 
-  const totalReviews = path.reduce((sum, m) => sum + m.totalReviews, 0);
-  const avgRating = path.reduce((sum, m) => sum + m.avgRating, 0) / path.length;
+  // If no grandparents at all
+  if (candidates.length === 0) {
+    return makeRoute([child, parent]);
+  }
 
+  // Return the best (qualified first, then highest rating)
+  candidates.sort((a, b) => {
+    if (a.qualified !== b.qualified) return a.qualified ? -1 : 1;
+    return b.avgRating - a.avgRating;
+  });
+  return candidates[0];
+}
+
+function makeRoute(nodes: MuttNode[]): PurebloodRoute {
+  const totalReviews = nodes.reduce((sum, m) => sum + m.totalReviews, 0);
+  const avgRating = nodes.reduce((sum, m) => sum + m.avgRating, 0) / nodes.length;
   return {
-    path: path.map(m => m.tokenId),
+    path: nodes.map(m => m.tokenId),
     avgRating,
     totalReviews,
     qualified: avgRating >= PUREBLOOD_MIN_RATING && totalReviews >= PUREBLOOD_MIN_REVIEWS,

@@ -8,7 +8,8 @@ import { useBreed, useApproveBreedToken, useBreedTokenAllowance, useBreedTokenBa
 import { useCooldown } from '@/hooks/useCooldown';
 import { useSync } from '@/hooks/useSync';
 import { WalletGuard } from '@/components/WalletGuard';
-import { isMockMode } from '@/lib/mock';
+import { supabase } from '@/lib/db';
+import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
 import type { BloodlineGrade } from '@/types';
 
 interface MuttSlot {
@@ -45,6 +46,8 @@ function BreedContent() {
   const { data: tokenBalance } = useBreedTokenBalance(address);
 
   const [myMutt, setMyMutt] = useState<MuttSlot | null>(null);
+  const [myMutts, setMyMutts] = useState<MuttSlot[]>([]);
+  const [showMyPicker, setShowMyPicker] = useState(false);
   const [partner, setPartner] = useState<MuttSlot | null>(null);
   const { isReady: cooldownReady, label: cooldownLabel } = useCooldown(myMutt?.tokenId);
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,6 +63,7 @@ function BreedContent() {
     personalityType: string;
     personalityDesc: string;
     traits: { color: string; expression: string; accessory: string };
+    nonce?: number;
   } | null>(null);
 
   const fetchMutt = useCallback(async (id: number): Promise<MuttSlot | null> => {
@@ -85,11 +89,51 @@ function BreedContent() {
     }
   }, [partnerId, fetchMutt]);
 
+  // Load user's owned mutts
   useEffect(() => {
-    if (!myMutt) {
-      fetchMutt(42).then((m) => m && setMyMutt(m));
+    if (!address) return;
+    const addr = address.toLowerCase();
+
+    if (isMockMode()) {
+      const mocks = Object.values(MOCK_MUTTS).map((m) => ({
+        tokenId: m.token_id,
+        personality: m.personality,
+        bloodline: m.bloodline as BloodlineGrade,
+        image: m.image,
+        breedCost: '0',
+      }));
+      setMyMutts(mocks);
+      if (!myMutt && mocks.length > 0) setMyMutt(mocks[0]);
+      return;
     }
-  }, [fetchMutt, myMutt]);
+
+    (async () => {
+      const { data: holdings } = await supabase
+        .from('holdings')
+        .select('token_id')
+        .eq('address', addr)
+        .gt('balance', 0);
+
+      if (!holdings || holdings.length === 0) return;
+      const tokenIds = holdings.map((h) => h.token_id);
+
+      const { data: muttsData } = await supabase
+        .from('mutts')
+        .select('token_id, personality, bloodline')
+        .in('token_id', tokenIds);
+
+      if (muttsData) {
+        const slots: MuttSlot[] = muttsData.map((m) => ({
+          tokenId: m.token_id,
+          personality: m.personality,
+          bloodline: m.bloodline as BloodlineGrade,
+        }));
+        setMyMutts(slots);
+        if (!myMutt && slots.length > 0) setMyMutt(slots[0]);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]);
 
   // Watch tx confirmation → sync → show result
   useEffect(() => {
@@ -109,12 +153,12 @@ function BreedContent() {
     if (txError) {
       setError(txError.message.slice(0, 100));
       setLoading(false);
-      // Clean up pending action on tx reject
+      // Clean up pending action on tx reject (pass nonce for precise deletion)
       if (address) {
         fetch('/api/pending/cancel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address }),
+          body: JSON.stringify({ address, nonce: pendingBreedRef.current?.nonce }),
         }).catch(() => {});
       }
     }
@@ -177,6 +221,7 @@ function BreedContent() {
         personalityType: data.personalityType,
         personalityDesc: data.personalityDesc,
         traits: data.traits,
+        nonce: data.nonce,
       };
 
       breed(
@@ -258,7 +303,7 @@ function BreedContent() {
 
       {/* Arena */}
       <div className="grid grid-cols-[1fr_auto_1fr] gap-6 items-start">
-        <SlotCard label="Your Mutt" mutt={myMutt} onClear={() => setMyMutt(null)} />
+        <SlotCard label="Your Mutt" mutt={myMutt} onClear={() => { setMyMutt(null); setShowMyPicker(true); }} />
 
         {/* Center */}
         <div className="flex flex-col items-center gap-6 py-10">
@@ -334,6 +379,36 @@ function BreedContent() {
 
         <SlotCard label="Partner Mutt" mutt={partner} onClear={() => setPartner(null)} />
       </div>
+
+      {/* My Mutts Picker */}
+      {(showMyPicker || !myMutt) && myMutts.length > 0 && (
+        <div
+          className="mt-10 p-6"
+          style={{ border: '1px solid rgba(200,168,78,0.15)', background: 'rgba(12,11,8,0.8)' }}
+        >
+          <h3 className="font-display text-xs text-gold tracking-[2px] uppercase mb-4">Select Your Mutt</h3>
+          <div className="grid grid-cols-4 gap-3">
+            {myMutts.filter((m) => m.tokenId !== partner?.tokenId).map((m) => (
+              <button
+                key={m.tokenId}
+                onClick={() => { setMyMutt(m); setShowMyPicker(false); }}
+                className="p-3 text-center transition-colors hover:border-gold"
+                style={{
+                  border: m.tokenId === myMutt?.tokenId ? '2px solid #c8a84e' : '1px solid rgba(200,168,78,0.12)',
+                  background: 'rgba(6,6,10,0.6)',
+                }}
+              >
+                <div className="text-3xl mb-2 opacity-50">?</div>
+                <p className="font-display text-xs tracking-[1px]" style={{ color: '#d4c5a0' }}>
+                  Mutt #{String(m.tokenId).padStart(4, '0')}
+                </p>
+                <p className="text-[11px] text-gold tracking-[1px]">{m.personality}</p>
+                <p className="text-[10px] mt-1" style={{ color: '#6a5f4a' }}>{BLOODLINE_LABEL[m.bloodline]}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div

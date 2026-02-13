@@ -94,10 +94,10 @@ export async function POST(req: NextRequest) {
         const mbti = pending.personality_type;
         const traits = pending.traits as { color: string; expression: string; accessory: string } | null;
 
-        // Determine bloodline
+        // Determine bloodline: genesis = mutt, bred = halfblood (upgraded to pureblood via rating)
         const parentA = Number(onChainData.parentA);
         const parentB = Number(onChainData.parentB);
-        const bloodline = parentA === 0 && parentB === 0 ? 'mutt' : 'mutt'; // bloodline calculated elsewhere
+        const bloodline = (parentA === 0 && parentB === 0) ? 'mutt' : 'halfblood';
 
         // Insert into mutts (idempotent — skip if exists)
         const { error: insertErr } = await supabaseAdmin.from('mutts').upsert({
@@ -127,18 +127,24 @@ export async function POST(req: NextRequest) {
       } else {
         // No pending action found — maybe already synced, create from on-chain data
         const mbti = INDEX_MBTI[onChainData.personality] || 'ENFP';
+        const parentA = Number(onChainData.parentA);
+        const parentB = Number(onChainData.parentB);
+        const fallbackBloodline = (parentA === 0 && parentB === 0) ? 'mutt' : 'halfblood';
+        const fallbackDesc = fallbackBloodline === 'mutt'
+          ? 'A mysterious creature born from pure chaos'
+          : 'Born from the union of two wandering souls';
         await supabaseAdmin.from('mutts').upsert({
           token_id: tokenId,
           personality: mbti,
-          personality_desc: 'Born on-chain',
+          personality_desc: fallbackDesc,
           identity: null,
-          bloodline: 'mutt',
+          bloodline: fallbackBloodline,
           color: 'gray',
           expression: 'neutral',
           accessory: 'none',
           image: `/images/${mbti.toLowerCase()}.png`,
-          parent_a: Number(onChainData.parentA),
-          parent_b: Number(onChainData.parentB),
+          parent_a: parentA,
+          parent_b: parentB,
           breeder: onChainData.breeder.toLowerCase(),
           mint_cost: onChainData.mintCost.toString(),
           max_supply: Number(onChainData.maxSupply),
@@ -162,12 +168,18 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'address,token_id' });
 
-    // 7. Log activity
+    // 7. Log activity with enriched detail
     await supabaseAdmin.from('activities').insert({
       type: action,
       actor: addr,
       token_id: tokenId,
-      detail: { action, tokenId },
+      detail: {
+        action,
+        tokenId,
+        personality: onChainData.personality,
+        parentA: Number(onChainData.parentA),
+        parentB: Number(onChainData.parentB),
+      },
     });
 
     return NextResponse.json({

@@ -80,6 +80,13 @@ export const MUTT_NFT_ABI = [
   },
   {
     type: 'function',
+    name: 'breedCooldown',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'hasGenesis',
     inputs: [{ name: '', type: 'address' }],
     outputs: [{ name: '', type: 'bool' }],

@@ -5,7 +5,7 @@ import { useReadContract } from 'wagmi';
 import { MUTT_NFT_ABI } from '@/lib/contracts/abi';
 import { MUTT_NFT_ADDRESS } from '@/lib/chain';
 
-const COOLDOWN_SECONDS = 300; // 5 minutes
+const FALLBACK_COOLDOWN = 300; // 5 minutes fallback
 
 interface CooldownState {
   remaining: number; // seconds remaining (0 = ready)
@@ -14,6 +14,15 @@ interface CooldownState {
 }
 
 export function useCooldown(tokenId?: number): CooldownState & { refetch: () => void } {
+  const { data: cooldownData } = useReadContract({
+    address: MUTT_NFT_ADDRESS,
+    abi: MUTT_NFT_ABI,
+    functionName: 'breedCooldown',
+    query: { enabled: !!MUTT_NFT_ADDRESS },
+  });
+
+  const cooldownSeconds = cooldownData ? Number(cooldownData as bigint) : FALLBACK_COOLDOWN;
+
   const { data, refetch } = useReadContract({
     address: MUTT_NFT_ADDRESS,
     abi: MUTT_NFT_ABI,
@@ -30,9 +39,9 @@ export function useCooldown(tokenId?: number): CooldownState & { refetch: () => 
     const lastBreed = Number(muttData.lastBreedTime);
     if (lastBreed === 0) return 0;
     const now = Math.floor(Date.now() / 1000);
-    const diff = (lastBreed + COOLDOWN_SECONDS) - now;
+    const diff = (lastBreed + cooldownSeconds) - now;
     return diff > 0 ? diff : 0;
-  }, [data]);
+  }, [data, cooldownSeconds]);
 
   useEffect(() => {
     setRemaining(calcRemaining());

@@ -135,9 +135,12 @@ async function checkAndUpdateBloodline(tokenId: number) {
       const parent = await getMutt(parentId);
       if (parent) {
         allNodes[parent.tokenId] = parent;
-        if (parent.parentA > 0) {
-          const gp = await getMutt(parent.parentA);
-          if (gp) allNodes[gp.tokenId] = gp;
+        // Fetch both grandparent sides
+        for (const gpId of [parent.parentA, parent.parentB]) {
+          if (gpId > 0 && !allNodes[gpId]) {
+            const gp = await getMutt(gpId);
+            if (gp) allNodes[gp.tokenId] = gp;
+          }
         }
       }
     }

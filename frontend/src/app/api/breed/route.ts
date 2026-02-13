@@ -118,6 +118,9 @@ export async function POST(req: NextRequest) {
       nonce
     );
 
+    // Delete stale pending_actions for same address+action (prevent duplicates)
+    await supabaseAdmin.from('pending_actions').delete().eq('address', addr).eq('action', 'breed');
+
     // Save to pending_actions (will be committed to mutts via /api/sync after on-chain tx)
     await supabaseAdmin.from('pending_actions').insert({
       nonce: Number(nonce),

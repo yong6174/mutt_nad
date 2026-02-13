@@ -35,7 +35,7 @@ export default function HatchPage() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const resultRef = useRef<HatchResult | null>(null);
-  const sigRef = useRef<{ personality: number; signature: `0x${string}` } | null>(null);
+  const sigRef = useRef<{ personality: number; signature: `0x${string}`; nonce: number } | null>(null);
 
   const showResultCard = useCallback(() => {
     setShowBurst(true);
@@ -82,12 +82,12 @@ export default function HatchPage() {
     if (txError) {
       setError(txError.message.slice(0, 100));
       setState('input');
-      // Clean up pending action on tx reject
+      // Clean up pending action on tx reject (pass nonce for precise deletion)
       if (address) {
         fetch('/api/pending/cancel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address }),
+          body: JSON.stringify({ address, nonce: sigRef.current?.nonce }),
         }).catch(() => {});
       }
     }
@@ -127,6 +127,7 @@ export default function HatchPage() {
       sigRef.current = {
         personality: data.personality,
         signature: data.signature as `0x${string}`,
+        nonce: data.nonce,
       };
 
       // Mock mode: skip contract, go straight to video
