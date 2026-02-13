@@ -8,6 +8,8 @@ import { useSync } from '@/hooks/useSync';
 import { WalletGuard } from '@/components/WalletGuard';
 import { supabase } from '@/lib/db';
 import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
+import { getPersonalityByType } from '@/lib/personality';
+import type { MBTI } from '@/types';
 import Link from 'next/link';
 import type { BloodlineGrade } from '@/types';
 
@@ -282,7 +284,10 @@ export default function HatchPage() {
             style={{ inset: '6px', border: '1px solid rgba(200,168,78,0.15)' }}
           />
 
-          <div className="text-[80px] mb-4">{'\u{1F98A}'}</div>
+          <div className="w-[120px] h-[120px] mx-auto mb-4 overflow-hidden rounded-lg" style={{ border: '1px solid rgba(200,168,78,0.2)' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={result?.personalityType ? getPersonalityByType(result.personalityType as MBTI).image : '/images/mbti/analyst.png'} alt="" className="w-full h-full object-cover" />
+          </div>
           <p className="font-display text-2xl text-gold tracking-[2px] mb-2">
             {result?.tokenId ? `Mutt #${String(result.tokenId).padStart(4, '0')}` : 'Your Mutt'}
           </p>
@@ -418,7 +423,10 @@ function AlreadyHatchedScreen({ address }: { address?: `0x${string}` }) {
 
         {mutt ? (
           <>
-            <div className="text-[64px] mb-3">{'\u{1F98A}'}</div>
+            <div className="w-[80px] h-[80px] mx-auto mb-3 overflow-hidden rounded-lg" style={{ border: '1px solid rgba(200,168,78,0.2)' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={getPersonalityByType(mutt.personality as MBTI).image} alt="" className="w-full h-full object-cover" />
+            </div>
             <p className="font-display text-xl text-gold tracking-[2px] mb-1">
               Mutt #{String(mutt.tokenId).padStart(4, '0')}
             </p>
@@ -445,7 +453,10 @@ function AlreadyHatchedScreen({ address }: { address?: `0x${string}` }) {
           </>
         ) : (
           <>
-            <div className="text-[64px] mb-3 opacity-30">{'\u{1F98A}'}</div>
+            <div className="w-[80px] h-[80px] mx-auto mb-3 overflow-hidden rounded-lg opacity-30" style={{ border: '1px solid rgba(200,168,78,0.2)' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/images/mbti/analyst.png" alt="" className="w-full h-full object-cover" />
+            </div>
             <p className="font-display text-xl text-gold tracking-[2px]">Your Genesis Mutt</p>
             <p className="text-sm mt-2" style={{ color: '#6a5f4a' }}>One per wallet.</p>
           </>

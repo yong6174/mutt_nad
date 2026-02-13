@@ -8,6 +8,8 @@ import { RatingDisplay } from '@/components/rating/RatingDisplay';
 import { StarRating } from '@/components/rating/StarRating';
 import { useSetBreedCost } from '@/hooks/useSetBreedCost';
 import { useMint } from '@/hooks/useMint';
+import { getPersonalityByType } from '@/lib/personality';
+import type { MBTI } from '@/types';
 import { useSync } from '@/hooks/useSync';
 import { useApproveBreedToken, useBreedTokenAllowance, useBreedTokenBalance } from '@/hooks/useBreed';
 import type { BloodlineGrade } from '@/types';
@@ -157,12 +159,12 @@ export default function MuttProfilePage() {
           className="w-full h-70 flex items-center justify-center text-8xl mb-4"
           style={{ background: 'rgba(10,10,15,0.8)', border: '1px solid rgba(200,168,78,0.08)' }}
         >
-          {mutt.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={mutt.image} alt={`Mutt #${mutt.tokenId}`} className="w-full h-full object-cover" />
-          ) : (
-            <span className="opacity-40">?</span>
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={mutt.image || getPersonalityByType(mutt.personality as MBTI).image}
+            alt={`Mutt #${mutt.tokenId}`}
+            className="w-full h-full object-cover"
+          />
         </div>
 
         <p

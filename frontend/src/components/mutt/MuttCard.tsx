@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import type { BloodlineGrade } from '@/types';
+import type { BloodlineGrade, MBTI } from '@/types';
+import { getPersonalityByType } from '@/lib/personality';
 
 interface MuttCardProps {
   tokenId: number;
@@ -43,12 +44,13 @@ export function MuttCard({
         <span className="px-3 py-1 border border-gold text-gold text-xs tracking-widest">{personality}</span>
       </div>
 
-      <div className="w-full h-56 bg-bg-tertiary border border-border-primary flex items-center justify-center text-7xl mb-4">
-        {image ? (
-          <img src={image} alt={`Mutt #${tokenId}`} className="w-full h-full object-cover" />
-        ) : (
-          <span className="opacity-50">?</span>
-        )}
+      <div className="w-full h-56 bg-bg-tertiary border border-border-primary flex items-center justify-center overflow-hidden mb-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={image || getPersonalityByType(personality as MBTI).image}
+          alt={`Mutt #${tokenId}`}
+          className="w-full h-full object-cover"
+        />
       </div>
 
       {personalityDesc && (

@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/db';
 import { isMockMode } from '@/lib/mock';
+import { getPersonalityByType } from '@/lib/personality';
+import type { MBTI } from '@/types';
 
 const MOCK_FEED = [
   { tokenId: 42, personality: 'ENFP', bloodline: 'Mutt' },
@@ -299,13 +301,19 @@ export default function LandingPage() {
                 }}
               >
                 <div
-                  className="w-[100px] h-[100px] mx-auto mb-3 flex items-center justify-center text-[42px]"
+                  className="w-[100px] h-[100px] mx-auto mb-3 flex items-center justify-center overflow-hidden"
                   style={{
                     background: 'rgba(26,21,16,0.8)',
                     border: '1px solid rgba(200,168,78,0.1)',
                   }}
                 >
-                  {BLOODLINE_ICON[m.bloodline] || '\u{1F415}'}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={getPersonalityByType(m.personality as MBTI).image}
+                    alt={m.personality}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; e.currentTarget.parentElement!.textContent = BLOODLINE_ICON[m.bloodline] || '\u{1F415}'; }}
+                  />
                 </div>
                 <p className="font-display text-[13px] text-text-primary tracking-[1px] mb-1">
                   Mutt #{String(m.tokenId).padStart(4, '0')}

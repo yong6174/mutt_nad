@@ -8,6 +8,8 @@ import { supabase } from '@/lib/db';
 import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
 import { useCooldown } from '@/hooks/useCooldown';
 import { useSetBreedCost } from '@/hooks/useSetBreedCost';
+import { getPersonalityByType } from '@/lib/personality';
+import type { MBTI } from '@/types';
 import { useSetMintConfig } from '@/hooks/useSetMintConfig';
 import type { BloodlineGrade } from '@/types';
 
@@ -258,7 +260,10 @@ function MuttCard({ mutt }: { mutt: MyMutt }) {
         {label}
       </div>
 
-      <div className="text-5xl mb-2 opacity-50">?</div>
+      <div className="w-[70px] h-[70px] mx-auto mb-2 overflow-hidden rounded-lg" style={{ border: '1px solid rgba(200,168,78,0.15)' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={getPersonalityByType(mutt.personality as MBTI).image} alt="" className="w-full h-full object-cover" />
+      </div>
       <p className="font-display text-sm tracking-[1px] mb-1" style={{ color: '#d4c5a0' }}>
         Mutt #{String(mutt.tokenId).padStart(4, '0')}
       </p>

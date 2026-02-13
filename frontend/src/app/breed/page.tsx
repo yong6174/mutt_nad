@@ -10,6 +10,8 @@ import { useSync } from '@/hooks/useSync';
 import { WalletGuard } from '@/components/WalletGuard';
 import { supabase } from '@/lib/db';
 import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
+import { getPersonalityByType } from '@/lib/personality';
+import type { MBTI } from '@/types';
 import type { BloodlineGrade } from '@/types';
 
 interface MuttSlot {
@@ -262,7 +264,10 @@ function BreedContent() {
             style={{ inset: '6px', border: '1px solid rgba(200,168,78,0.15)' }}
           />
           <h2 className="font-display text-2xl text-gold tracking-[3px] mb-6">A New Mutt is Born!</h2>
-          <div className="text-7xl mb-4">{'\u{1F423}'}</div>
+          <div className="w-[100px] h-[100px] mx-auto mb-4 overflow-hidden rounded-lg" style={{ border: '1px solid rgba(200,168,78,0.2)' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={result.personalityType ? getPersonalityByType(result.personalityType as MBTI).image : '/images/mbti/analyst.png'} alt="" className="w-full h-full object-cover" />
+          </div>
           <p className="font-display text-xl tracking-[2px] mb-1" style={{ color: '#d4c5a0' }}>
             {result.personalityType}
           </p>
