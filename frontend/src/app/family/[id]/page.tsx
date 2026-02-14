@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { supabase } from '@/lib/db';
 import type { BloodlineGrade } from '@/types';
 
 interface TreeNode {
@@ -16,6 +17,7 @@ interface TreeNode {
   parentA: number;
   parentB: number;
   image?: string;
+  isSacred?: boolean;
 }
 
 export default function FamilyTreePage() {
@@ -23,6 +25,7 @@ export default function FamilyTreePage() {
   const [current, setCurrent] = useState<TreeNode | null>(null);
   const [parents, setParents] = useState<(TreeNode | null)[]>([null, null]);
   const [grandparents, setGrandparents] = useState<(TreeNode | null)[]>([null, null, null, null]);
+  const [sacredIds, setSacredIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,6 +68,36 @@ export default function FamilyTreePage() {
         pB?.parentB ? fetchNode(pB.parentB) : null,
       ]);
       setGrandparents(gps);
+
+      // Fetch sacred 28 membership
+      const { data: routeData } = await supabase
+        .from('mutts')
+        .select('token_id, pureblood_route')
+        .not('pureblood_route', 'is', null);
+
+      if (routeData) {
+        // Build house list, sort by avg, take top 28
+        const houseMap = new Map<number, { avgRating: number; memberIds: Set<number> }>();
+        for (const m of routeData) {
+          const route = m.pureblood_route as { path: number[]; avgRating: number } | null;
+          if (!route?.path?.length) continue;
+          const childId = route.path[0];
+          if (!houseMap.has(childId)) {
+            houseMap.set(childId, { avgRating: route.avgRating, memberIds: new Set() });
+          }
+          const house = houseMap.get(childId)!;
+          for (const id of route.path) house.memberIds.add(id);
+        }
+        const top28 = Array.from(houseMap.entries())
+          .sort((a, b) => b[1].avgRating - a[1].avgRating)
+          .slice(0, 28);
+        const ids = new Set<number>();
+        for (const [, house] of top28) {
+          for (const id of house.memberIds) ids.add(id);
+        }
+        setSacredIds(ids);
+      }
+
       setLoading(false);
     };
     load();
@@ -110,7 +143,7 @@ export default function FamilyTreePage() {
               </p>
               <div className="flex gap-6 justify-center">
                 {visibleGps.map((gp, i) => (
-                  <NodeCard key={i} node={gp} />
+                  <NodeCard key={i} node={gp} sacredIds={sacredIds} />
                 ))}
               </div>
               <Connector />
@@ -124,7 +157,7 @@ export default function FamilyTreePage() {
         </p>
         <div className="flex gap-28 justify-center">
           {parents.map((p, i) => (
-            <NodeCard key={i} node={p} isGenesis={p !== null && p.parentA === 0} />
+            <NodeCard key={i} node={p} isGenesis={p !== null && p.parentA === 0} sacredIds={sacredIds} />
           ))}
         </div>
 
@@ -134,11 +167,11 @@ export default function FamilyTreePage() {
         <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#3a3028' }}>
           Current
         </p>
-        <NodeCard node={current} highlight />
+        <NodeCard node={current} highlight sacredIds={sacredIds} />
       </div>
 
-      {/* Pureblood route info */}
-      {(current.bloodline === 'pureblood' || current.bloodline === 'sacred28') && (
+      {/* Pureblood / Sacred route info */}
+      {(current.bloodline === 'pureblood' || current.bloodline === 'sacred28' || sacredIds.has(current.tokenId)) && (
         <div
           className="mt-10 p-6 text-center relative overflow-hidden"
           style={{
@@ -151,7 +184,9 @@ export default function FamilyTreePage() {
             style={{ background: 'radial-gradient(ellipse at center top, rgba(200,168,78,0.06) 0%, transparent 70%)' }}
           />
           <p className="font-display text-[13px] tracking-[3px] uppercase mb-3" style={{ color: '#e8d48a' }}>
-            {'\u2726'} Pureblood Route {'\u2726'}
+            {sacredIds.has(current.tokenId)
+              ? '\u2726 Sacred 28 Bloodline \u2726'
+              : '\u2726 Pureblood Route \u2726'}
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             {[current, parents[0], ...grandparents.filter(Boolean)].filter(Boolean).map((node, i) => (
@@ -172,10 +207,11 @@ export default function FamilyTreePage() {
   );
 }
 
-function NodeCard({ node, highlight, isGenesis }: { node: TreeNode | null; highlight?: boolean; isGenesis?: boolean }) {
+function NodeCard({ node, highlight, isGenesis, sacredIds }: { node: TreeNode | null; highlight?: boolean; isGenesis?: boolean; sacredIds?: Set<number> }) {
   if (!node) return null;
 
-  const isPure = node.bloodline === 'pureblood' || node.bloodline === 'sacred28';
+  const isSacred = sacredIds?.has(node.tokenId) ?? false;
+  const isPure = isSacred || node.bloodline === 'pureblood' || node.bloodline === 'sacred28';
   const imgSrc = node.image || '/images/mbti/analyst.png';
 
   // Extract name from personality_desc ("Name — Description")
@@ -241,8 +277,9 @@ function NodeCard({ node, highlight, isGenesis }: { node: TreeNode | null; highl
         <span className="text-[9px]" style={{ color: '#4a4030' }}>({node.totalReviews})</span>
       </div>
       {isPure && (
-        <p className="font-display text-[8px] tracking-[2px] uppercase mt-1.5" style={{ color: '#c8a84e' }}>
-          Pureblood
+        <p className="font-display text-[8px] tracking-[2px] uppercase mt-1.5"
+          style={{ color: isSacred ? '#e8d48a' : '#c8a84e' }}>
+          {isSacred ? '\u2726 Sacred 28 \u2726' : 'Pureblood'}
         </p>
       )}
     </Link>
