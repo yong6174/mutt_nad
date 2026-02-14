@@ -1,0 +1,250 @@
+# Mutt — On-Chain AI Companion Breeding Platform
+
+> Hatch. Breed. Chaos.
+> Purebloods are earned, not born.
+
+## Project Overview
+
+Mutt is an on-chain AI companion breeding platform on Monad (testnet). Users hatch AI companions (ERC-1155 NFTs) with LLM-generated personalities, breed them with other users' companions, and climb bloodline ranks through community ratings.
+
+Live: https://mutt-nad.vercel.app
+Chain: Monad Testnet (ID 10143)
+MuttNFT Contract: 0x43a83D0aCc51bA88bdF2eC8e1d3A40123ef15c41
+MUTT Token (ERC-20): 0x0B8fE534aB0f6Bf6A09E92BB1f260Cadd7587777
+
+## Key Concepts
+
+### MBTI Personality System
+- Each Mutt has one of 16 MBTI types (index 0-15)
+- MBTI mapping: INTJ=0, INTP=1, ENTJ=2, ENTP=3, INFJ=4, INFP=5, ENFJ=6, ENFP=7, ISTJ=8, ISFJ=9, ESTJ=10, ESFJ=11, ISTP=12, ISFP=13, ESTP=14, ESFP=15
+- 16 MBTI types are grouped into 4 visual groups for images:
+  - Analyst (INTJ, INTP, ENTJ, ENTP) → /images/mbti/analyst.png
+  - Diplomat (INFJ, INFP, ENFJ, ENFP) → /images/mbti/diplomat.png
+  - Sentinel (ISTJ, ISFJ, ESTJ, ESFJ) → /images/mbti/sentinel.png
+  - Explorer (ISTP, ISFP, ESTP, ESFP) → /images/mbti/explorer.png
+
+### Bloodline Grades
+- **Mutt**: Default grade for genesis hatched companions
+- **Halfblood**: Bred offspring (has parents)
+- **Pureblood**: A 3-generation route (child → parent → grandparent) with avg rating ≥ 4.7 AND total reviews ≥ 10. Retroactive: all members in qualifying route get upgraded.
+- **Sacred 28**: Top 28 pureblood houses ranked by route average rating. Max 140 members (28 × 5).
+
+### Pureblood Route Checking
+- Check from child upward: Route A (child → parentA → grandparentA), Route B (child → parentB → grandparentB)
+- 1-3 members per route is fine as long as conditions are met
+- If both routes qualify, only the higher-rated one counts
+- Implemented in `frontend/src/lib/bloodline.ts`
+
+### Breeding
+- Requires owning parentA, parentB must exist
+- Breed cost in MUTT ERC-20 tokens (set by partner's breeder)
+- 90% cost → partner's breeder, 10% → platform wallet
+- 5-minute cooldown on parentA after breeding
+- Offspring personality: LLM analysis of parent identities, or MBTI genetic fallback (each axis inherited independently, 10% mutation rate)
+
+## Architecture
+
+### Flow: Hatch
+1. User submits IDENTITY.md text → `POST /api/hatch`
+2. API: LLM analyzes identity → determines MBTI + name + traits → signs EIP-712 → saves to `pending_actions` table
+3. User calls `genesisHatch(personality, signature)` on MuttNFT contract
+4. User calls `POST /api/sync` → verifies on-chain balance → moves pending_action to `mutts` table + upserts `holdings`
+
+### Flow: Breed
+1. User selects parentA (own) + parentB (partner) → `POST /api/breed`
+2. API: Fetches parent data → LLM combines identities → signs EIP-712 → saves to `pending_actions`
+3. User calls `breed(parentA, parentB, personality, signature)` on contract (may need ERC-20 approve first)
+4. User calls `POST /api/sync` → commits to DB
+
+### Flow: Rate
+1. `POST /api/rate` with tokenId, voter address, score (1-5)
+2. API validates (no self-rating, no duplicate), inserts rating, recalculates average
+3. API checks pureblood eligibility retroactively for the rated mutt's lineage
+
+## File Structure Guide
+
+### Contract
+- `contract/src/MuttNFT.sol` — Main contract: ERC-1155 + EIP-712, MuttData struct (personality, parents, breeder, breedCost, lastBreedTime, mintCost, maxSupply, totalSupply), functions: genesisHatch, breed, mint, setBreedCost, setMintConfig, getMutt
+- `contract/test/MuttNFT.t.sol` — Foundry tests (30 tests)
+- `contract/script/Deploy.s.sol` — Deployment script, reads NETWORK env to select testnet/mainnet keys
+
+### Frontend - API Routes
+- `src/app/api/hatch/route.ts` — POST: identity → LLM analysis → EIP-712 sign → pending_actions. Mock mode fallback.
+- `src/app/api/breed/route.ts` — POST: fetch parents from DB → LLM breeding analysis → sign → pending_actions
+- `src/app/api/sync/route.ts` — POST: verify on-chain ownership → transfer pending_action to mutts → upsert holdings → log activity
+- `src/app/api/rate/route.ts` — POST: insert rating, recalculate avg, check pureblood retroactively
+- `src/app/api/mutt/[id]/route.ts` — GET: fetch off-chain (DB) + on-chain data, supports ?viewer= for rating status
+- `src/app/api/my/route.ts` — GET: fetch holdings → join mutts → return with activities. Uses supabaseAdmin to bypass RLS.
+- `src/app/api/pending/cancel/route.ts` — POST: delete stale pending_actions (by nonce or >30min old)
+
+### Frontend - Pages
+- `src/app/page.tsx` — Landing (letter animation, 3-step explainer, stats)
+- `src/app/hatch/page.tsx` — Genesis hatch (3-step: API → contract tx → sync, spinner animation)
+- `src/app/breed/page.tsx` — Breeding (select own mutt + search partner, API-driven, MBTI group images)
+- `src/app/mutt/[id]/page.tsx` — Mutt profile (Sacred 28 label, Origin/Genesis for no-parent, star rating, mint section)
+- `src/app/family/[id]/page.tsx` — Family tree (3-gen tree view, Sacred 28 labels)
+- `src/app/leaderboard/page.tsx` — Sacred 28 leaderboard
+- `src/app/my/page.tsx` — My collection (via /api/my, mint config editor)
+- `src/app/explore/page.tsx` — Browse all mutts
+
+### Frontend - Libs
+- `src/lib/chain.ts` — Monad chain definitions (testnet ID 10143, mainnet ID 143). Exports activeChain, MUTT_NFT_ADDRESS, MUTT_TOKEN_ADDRESS based on NEXT_PUBLIC_NETWORK env.
+- `src/lib/personality.ts` — PersonalityInfo array (16 MBTI → 4 groups), getPersonality(index), getPersonalityByType(type)
+- `src/lib/bloodline.ts` — checkPureblood() function, buildRoute(), constants: PUREBLOOD_MIN_RATING=4.7, PUREBLOOD_MIN_REVIEWS=10
+- `src/lib/contracts/abi.ts` — MUTT_NFT_ABI (full ABI with all functions/events), ERC20_ABI
+- `src/lib/contracts/addresses.ts` — Legacy address exports from env vars
+- `src/lib/db.ts` — supabaseAdmin (service role) + supabase (anon) clients
+- `src/lib/wagmi.ts` — RainbowKit config, injected wallets only
+- `src/lib/mock.ts` — Mock data for development, isMockMode() check
+- `src/lib/server/llm.ts` — analyzeIdentity(), analyzeBreeding(), randomMbti(), randomName(), mbtiGeneticFallback() — uses gpt-4o-mini via Vercel AI SDK generateObject()
+- `src/lib/server/signer.ts` — signHatch(), signBreed() — EIP-712 typed data signing with server private key. Lazy-loads private key from env.
+
+### Frontend - Hooks
+- `src/hooks/useGenesisHatch.ts` — Call genesisHatch on contract, extract tokenId from GenesisHatch event
+- `src/hooks/useBreed.ts` — Call breed on contract, extract tokenId from Bred event
+- `src/hooks/useMint.ts` — Call mint on contract
+- `src/hooks/useSync.ts` — Call POST /api/sync
+- `src/hooks/useSetBreedCost.ts` — Call setBreedCost on contract
+- `src/hooks/useSetMintConfig.ts` — Call setMintConfig on contract
+- `src/hooks/useGetMutt.ts` — Read getMutt from contract
+- `src/hooks/useHasGenesis.ts` — Read hasGenesis from contract
+- `src/hooks/useCooldown.ts` — Check breed cooldown status
+- `src/hooks/useWalletGuard.ts` — Wallet connection guard
+
+### Frontend - Types
+- `src/types/index.ts` — MBTI type, MBTI_INDEX, INDEX_MBTI, BloodlineGrade, Traits, MuttOnChain (incl. mintCost/maxSupply/totalSupply), MuttOffChain, MuttFull, Rating, House, BreedRequest, BreedResult
+
+## API Endpoints
+
+### POST /api/hatch
+Request: `{ address: string, identity?: string }`
+Response: `{ personality: number, personalityType: string, personalityDesc: string, name: string, traits: {color, expression, accessory}, signature: hex, nonce: number }`
+Errors: 400 (no address), 409 (already hatched)
+
+### POST /api/breed
+Request: `{ address: string, parentA: number, parentB: number }`
+Response: `{ personality: number, personalityType: string, personalityDesc: string, name: string, traits: {...}, signature: hex, nonce: number }`
+Errors: 400 (missing params / self-breed), 404 (parent not found)
+
+### POST /api/sync
+Request: `{ address: string, tokenId: number, action: "hatch"|"breed"|"mint" }`
+Response: `{ success: true, tokenId: number, balance: number }`
+Errors: 400 (missing params), 403 (no on-chain balance), 409 (already synced), 500 (contract not configured)
+
+### POST /api/rate
+Request: `{ tokenId: number, voter: string, score: 1-5 }`
+Response: `{ success: true, newAvgRating: number, totalReviews: number }`
+Errors: 400 (invalid params), 403 (self-rating), 404 (mutt not found), 409 (already rated)
+
+### GET /api/mutt/[id]?viewer=0x...
+Response: `{ tokenId, personality, personalityDesc, identity, bloodline, avgRating, totalReviews, traits, image, parentA, parentB, breeder, onChain: {...} | null, hasRated, myRating }`
+
+### GET /api/my?address=0x...
+Response: `{ mutts: [{tokenId, personality, bloodline, avgRating, breedCost, isBreeder}], activities: [...] }`
+
+### POST /api/pending/cancel
+Request: `{ address: string, nonce?: number }`
+Response: `{ success: true }`
+
+## Contract Functions
+
+### MuttNFT.sol (Solidity 0.8.24)
+
+State:
+- `muttToken: IERC20` — MUTT ERC-20 token contract
+- `nextTokenId: uint256` — Starts at 1, auto-increments
+- `serverSigner: address` — Server address for EIP-712 verification
+- `platformFeePercent: uint256` — Default 10%
+- `platformWallet: address`
+- `breedCooldown: uint256` — Default 5 minutes
+- `mutts: mapping(uint256 => MuttData)` — Token data
+- `hasGenesis: mapping(address => bool)` — 1 genesis per wallet
+- `nonces: mapping(address => uint256)` — Replay protection
+
+Functions:
+- `genesisHatch(uint8 personality, bytes signature)` — Mint genesis (1/wallet), verifies EIP-712 signature
+- `breed(uint256 parentA, uint256 parentB, uint8 personality, bytes signature)` — Breed, requires owning parentA, pays MUTT ERC-20 breedCost to partner breeder (90%) + platform (10%), 5min cooldown
+- `mint(uint256 tokenId)` — Adopt/mint copy of existing Mutt, pays mintCost in MUTT ERC-20
+- `setBreedCost(uint256 tokenId, uint256 cost)` — Breeder only
+- `setMintConfig(uint256 tokenId, uint256 mintCost, uint256 maxSupply)` — Breeder only
+- `getMutt(uint256 tokenId) → MuttData` — View function
+
+Events: GenesisHatch, Bred, BreedCostSet, Minted, MintConfigSet
+
+## Database Schema (Supabase/PostgreSQL)
+
+### mutts
+- token_id (PK, INTEGER)
+- personality (VARCHAR(4), e.g. 'ENFP')
+- personality_desc (TEXT)
+- identity (TEXT, nullable)
+- bloodline (VARCHAR(20), default 'mutt')
+- avg_rating (DECIMAL(3,2), default 0)
+- total_reviews (INTEGER, default 0)
+- color, expression, accessory (VARCHAR(30))
+- image (VARCHAR(100))
+- parent_a, parent_b (INTEGER, default 0)
+- breeder (VARCHAR(42), lowercase 0x address)
+- pureblood_route (JSONB, nullable)
+- mint_cost (TEXT, default '0')
+- max_supply (INTEGER, default 0)
+- total_supply (INTEGER, default 1)
+- created_at (TIMESTAMPTZ)
+
+### ratings
+- id (SERIAL PK)
+- token_id (INTEGER, references mutts)
+- voter (VARCHAR(42))
+- score (SMALLINT, 1-5)
+- created_at (TIMESTAMPTZ)
+- UNIQUE(token_id, voter)
+
+### activities
+- id (SERIAL PK)
+- type (VARCHAR(20): 'hatch'/'breed'/'rating'/'earn'/'mint')
+- actor (VARCHAR(42))
+- token_id (INTEGER)
+- detail (JSONB)
+- created_at (TIMESTAMPTZ)
+
+### holdings
+- address (TEXT, PK composite)
+- token_id (INTEGER, PK composite)
+- balance (INTEGER, default 1)
+- updated_at (TIMESTAMPTZ)
+
+### pending_actions
+- id (SERIAL PK)
+- nonce (BIGINT)
+- address (TEXT)
+- action (TEXT: 'hatch'/'breed')
+- personality (SMALLINT)
+- personality_type (VARCHAR(4))
+- personality_desc (TEXT)
+- traits (JSONB)
+- identity (TEXT, nullable)
+- parent_a, parent_b (INTEGER, default 0)
+- created_at (TIMESTAMPTZ)
+
+## Key Business Rules
+
+1. **Genesis hatch**: 1 per wallet (enforced on-chain via `hasGenesis` mapping + DB check)
+2. **Breed cost**: Set by breeder of partner token in MUTT ERC-20. 90% goes to breeder, 10% to platform.
+3. **Breed cooldown**: 5 minutes on parentA after breeding (on-chain enforcement)
+4. **Pureblood criteria**: 3-gen route average rating ≥ 4.7 AND total reviews across route ≥ 10
+5. **Sacred 28**: Top 28 pureblood houses by route average rating. House = child token ID.
+6. **Rating**: 1-5 stars, one vote per voter per token, no self-rating (breeder cannot rate own mutt)
+7. **Personality inheritance**: LLM-based when parents have identity text, MBTI genetic fallback otherwise (each axis independent, 10% mutation)
+8. **Sync pattern**: API generates signature + saves to pending_actions → user executes contract tx → user calls /api/sync to commit to DB
+
+## Common Gotchas
+
+1. **RLS on holdings table**: No anon SELECT policy exists. Client-side Supabase queries to `holdings` will fail. Use `/api/my` server route (supabaseAdmin) instead.
+2. **Lowercase addresses**: DB stores all addresses as lowercase. Always call `.toLowerCase()` before DB queries or comparisons. On-chain addresses have mixed-case checksums.
+3. **Signer lazy initialization**: `server/signer.ts` → `getServerAccount()` reads env var on each call. If `TESTNET_SERVER_PRIVATE_KEY` (or MAINNET_) is missing, it throws. This is intentional — no global init.
+4. **Personality image mapping**: `personality.ts` maps 16 MBTI types to 4 group images (analyst/diplomat/sentinel/explorer), NOT 16 individual images. Image path: `/images/mbti/{group}.png`.
+5. **Mock mode**: Activates when `NEXT_PUBLIC_MOCK=true` OR Supabase URL is empty/contains 'placeholder'. Skips DB and contract calls, returns fake data.
+6. **Network switching**: `NEXT_PUBLIC_NETWORK` env var controls testnet vs mainnet. Affects chain config, contract addresses, server private key selection.
+7. **Contract address sourcing**: `lib/chain.ts` reads `NEXT_PUBLIC_TESTNET_MUTT_NFT_ADDRESS` / `NEXT_PUBLIC_MAINNET_MUTT_NFT_ADDRESS` based on network. `lib/contracts/addresses.ts` is a legacy file reading `NEXT_PUBLIC_MUTT_NFT_ADDRESS` — the chain.ts version is canonical.
+8. **Pending action cleanup**: Stale pending actions (>30 min) can be cleaned via `POST /api/pending/cancel`. Also, each new hatch/breed deletes previous pending action for the same address+action to prevent duplicates.
+9. **EIP-712 domain**: name="MuttNFT", version="1", chainId from activeChain, verifyingContract from MUTT_NFT_ADDRESS env var.
