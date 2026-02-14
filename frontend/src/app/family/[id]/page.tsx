@@ -9,6 +9,7 @@ import type { BloodlineGrade } from '@/types';
 interface TreeNode {
   tokenId: number;
   personality: string;
+  personalityDesc?: string;
   bloodline: BloodlineGrade;
   avgRating: number;
   totalReviews: number;
@@ -33,6 +34,7 @@ export default function FamilyTreePage() {
         return {
           tokenId: d.tokenId,
           personality: d.personality,
+          personalityDesc: d.personalityDesc,
           bloodline: d.bloodline,
           avgRating: d.avgRating,
           totalReviews: d.totalReviews,
@@ -138,14 +140,31 @@ export default function FamilyTreePage() {
       {/* Pureblood route info */}
       {(current.bloodline === 'pureblood' || current.bloodline === 'sacred28') && (
         <div
-          className="mt-8 p-4 text-center"
-          style={{ border: '1px solid rgba(200,168,78,0.3)', background: 'rgba(18,17,10,0.8)' }}
+          className="mt-10 p-6 text-center relative overflow-hidden"
+          style={{
+            border: '1px solid rgba(200,168,78,0.4)',
+            background: 'linear-gradient(135deg, rgba(26,22,16,0.95) 0%, rgba(18,16,12,0.95) 100%)',
+            boxShadow: '0 0 40px rgba(200,168,78,0.08), inset 0 0 30px rgba(200,168,78,0.03)',
+          }}
         >
-          <p className="font-display text-[11px] text-gold tracking-[2px] uppercase mb-2">Pureblood Route</p>
-          <p className="text-sm" style={{ color: '#d4c5a0' }}>
-            #{String(current.tokenId).padStart(4, '0')}
-            {parents[0] && ` \u2192 #${String(parents[0].tokenId).padStart(4, '0')}`}
-            {grandparents[0] && ` \u2192 #${String(grandparents[0].tokenId).padStart(4, '0')}`}
+          <div className="absolute inset-0 pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse at center top, rgba(200,168,78,0.06) 0%, transparent 70%)' }}
+          />
+          <p className="font-display text-[13px] tracking-[3px] uppercase mb-3" style={{ color: '#e8d48a' }}>
+            {'\u2726'} Pureblood Route {'\u2726'}
+          </p>
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            {[current, parents[0], ...grandparents.filter(Boolean)].filter(Boolean).map((node, i) => (
+              <span key={i} className="flex items-center gap-2">
+                {i > 0 && <span style={{ color: '#4a4030' }}>{'\u2192'}</span>}
+                <span className="font-display text-sm" style={{ color: '#d4c5a0' }}>
+                  #{String(node!.tokenId).padStart(4, '0')}
+                </span>
+              </span>
+            ))}
+          </div>
+          <p className="text-[10px] mt-3 font-display tracking-[2px]" style={{ color: '#6a5f4a' }}>
+            &ldquo;Purebloods are earned, not born.&rdquo;
           </p>
         </div>
       )}
@@ -159,37 +178,73 @@ function NodeCard({ node, highlight, isGenesis }: { node: TreeNode | null; highl
   const isPure = node.bloodline === 'pureblood' || node.bloodline === 'sacred28';
   const imgSrc = node.image || '/images/mbti/analyst.png';
 
+  // Extract name from personality_desc ("Name — Description")
+  const name = node.personalityDesc?.split(' — ')[0] || `Mutt #${String(node.tokenId).padStart(4, '0')}`;
+
   return (
     <Link
       href={`/mutt/${node.tokenId}`}
-      className="w-36 p-3 text-center relative transition-colors hover:border-gold"
+      className="w-40 p-4 text-center relative transition-all duration-300 hover:scale-105 group"
       style={{
         border: highlight
           ? '2px solid #c8a84e'
           : isPure
-            ? '2px solid rgba(200,168,78,0.5)'
+            ? '2px solid rgba(200,168,78,0.6)'
             : '1px solid rgba(200,168,78,0.12)',
-        background: 'linear-gradient(135deg, #1a1610 0%, #12100c 100%)',
-        boxShadow: highlight ? '0 0 20px rgba(200,168,78,0.15)' : 'none',
+        background: isPure
+          ? 'linear-gradient(135deg, #2a2210 0%, #1a1508 50%, #12100c 100%)'
+          : 'linear-gradient(135deg, #1a1610 0%, #12100c 100%)',
+        boxShadow: highlight
+          ? '0 0 30px rgba(200,168,78,0.25), inset 0 0 20px rgba(200,168,78,0.05)'
+          : isPure
+            ? '0 0 15px rgba(200,168,78,0.12), inset 0 0 10px rgba(200,168,78,0.03)'
+            : 'none',
       }}
     >
-      {isPure && <span className="absolute -top-2 -right-2 text-sm">{'\u{1F451}'}</span>}
+      {/* Pureblood corner glow */}
+      {isPure && (
+        <>
+          <span className="absolute -top-2 -right-2 text-sm">{'\u{1F451}'}</span>
+          <div className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'radial-gradient(ellipse at top, rgba(200,168,78,0.08) 0%, transparent 60%)',
+            }}
+          />
+        </>
+      )}
       {isGenesis && (
         <span className="absolute -top-2 -left-2 font-display text-[9px] tracking-[1px] px-1.5 py-0.5"
           style={{ background: 'rgba(12,11,8,0.9)', border: '1px solid rgba(200,168,78,0.2)', color: '#6a5f4a' }}>
           GEN0
         </span>
       )}
-      <div className="flex justify-center mb-1">
-        <Image src={imgSrc} alt={node.personality} width={48} height={48} className="opacity-70" />
+      <div className="flex justify-center mb-2 relative">
+        <Image
+          src={imgSrc}
+          alt={node.personality}
+          width={56}
+          height={56}
+          className={isPure ? 'opacity-90 drop-shadow-[0_0_8px_rgba(200,168,78,0.3)]' : 'opacity-70'}
+        />
       </div>
-      <p className="font-display text-[11px] tracking-[1px]" style={{ color: '#d4c5a0' }}>
-        Mutt #{String(node.tokenId).padStart(4, '0')}
+      <p className="font-display text-[12px] tracking-[1px] mb-0.5" style={{ color: isPure ? '#e8d48a' : '#d4c5a0' }}>
+        {name}
+      </p>
+      <p className="font-display text-[11px] tracking-[1px]" style={{ color: '#8a7d5a' }}>
+        #{String(node.tokenId).padStart(4, '0')}
       </p>
       <p className="text-[10px] text-gold tracking-[1px]">{node.personality}</p>
-      <p className="text-[10px] mt-1" style={{ color: '#6a5f4a' }}>
-        {'\u2605'} {node.avgRating.toFixed(1)} ({node.totalReviews})
-      </p>
+      <div className="flex items-center justify-center gap-1 mt-1">
+        <span className="text-[11px]" style={{ color: isPure ? '#e8d48a' : '#6a5f4a' }}>
+          {'\u2605'} {node.avgRating.toFixed(1)}
+        </span>
+        <span className="text-[9px]" style={{ color: '#4a4030' }}>({node.totalReviews})</span>
+      </div>
+      {isPure && (
+        <p className="font-display text-[8px] tracking-[2px] uppercase mt-1.5" style={{ color: '#c8a84e' }}>
+          Pureblood
+        </p>
+      )}
     </Link>
   );
 }

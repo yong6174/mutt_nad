@@ -5,6 +5,8 @@ import { activeChain, MUTT_NFT_ADDRESS } from '@/lib/chain';
 import { MUTT_NFT_ABI } from '@/lib/contracts/abi';
 import { INDEX_MBTI } from '@/types';
 import { isMockMode } from '@/lib/mock';
+import { getPersonalityByType } from '@/lib/personality';
+import type { MBTI } from '@/types';
 
 const client = createPublicClient({
   chain: activeChain,
@@ -100,6 +102,7 @@ export async function POST(req: NextRequest) {
         const bloodline = (parentA === 0 && parentB === 0) ? 'mutt' : 'halfblood';
 
         // Insert into mutts (idempotent — skip if exists)
+        const pInfo = getPersonalityByType(mbti as MBTI);
         const { error: insertErr } = await supabaseAdmin.from('mutts').upsert({
           token_id: tokenId,
           personality: mbti,
@@ -109,7 +112,7 @@ export async function POST(req: NextRequest) {
           color: traits?.color || 'gray',
           expression: traits?.expression || 'neutral',
           accessory: traits?.accessory || 'none',
-          image: `/images/${mbti.toLowerCase()}.png`,
+          image: pInfo.image,
           parent_a: parentA,
           parent_b: parentB,
           breeder: onChainData.breeder.toLowerCase(),
@@ -127,6 +130,7 @@ export async function POST(req: NextRequest) {
       } else {
         // No pending action found — maybe already synced, create from on-chain data
         const mbti = INDEX_MBTI[onChainData.personality] || 'ENFP';
+        const fallbackPInfo = getPersonalityByType(mbti as MBTI);
         const parentA = Number(onChainData.parentA);
         const parentB = Number(onChainData.parentB);
         const fallbackBloodline = (parentA === 0 && parentB === 0) ? 'mutt' : 'halfblood';
@@ -142,7 +146,7 @@ export async function POST(req: NextRequest) {
           color: 'gray',
           expression: 'neutral',
           accessory: 'none',
-          image: `/images/${mbti.toLowerCase()}.png`,
+          image: fallbackPInfo.image,
           parent_a: parentA,
           parent_b: parentB,
           breeder: onChainData.breeder.toLowerCase(),
