@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/db';
 import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
 import { useCooldown } from '@/hooks/useCooldown';
 import { useSetBreedCost } from '@/hooks/useSetBreedCost';
@@ -79,44 +78,16 @@ export default function MyPage() {
         return;
       }
 
-      const [holdingsRes, activitiesRes] = await Promise.all([
-        supabase
-          .from('holdings')
-          .select('token_id, balance')
-          .eq('address', addr)
-          .gt('balance', 0)
-          .order('updated_at', { ascending: false }),
-        supabase
-          .from('activities')
-          .select('*')
-          .eq('actor', addr)
-          .order('created_at', { ascending: false })
-          .limit(10),
-      ]);
-
-      if (holdingsRes.data && holdingsRes.data.length > 0) {
-        const tokenIds = holdingsRes.data.map((h) => h.token_id);
-        const { data: muttsData } = await supabase
-          .from('mutts')
-          .select('token_id, personality, bloodline, avg_rating, breeder')
-          .in('token_id', tokenIds);
-
-        if (muttsData) {
-          setMutts(
-            muttsData.map((m) => ({
-              tokenId: m.token_id,
-              personality: m.personality,
-              bloodline: m.bloodline as BloodlineGrade,
-              avgRating: Number(m.avg_rating),
-              breedCost: '0',
-              isBreeder: m.breeder === addr,
-            })),
-          );
-        }
-      }
-
-      if (activitiesRes.data) {
-        setActivities(activitiesRes.data as Activity[]);
+      const res = await fetch(`/api/my?address=${addr}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMutts(
+          (data.mutts || []).map((m: { tokenId: number; personality: string; bloodline: string; avgRating: number; breedCost: string; isBreeder: boolean }) => ({
+            ...m,
+            bloodline: m.bloodline as BloodlineGrade,
+          })),
+        );
+        setActivities(data.activities || []);
       }
 
       setLoading(false);
