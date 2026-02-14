@@ -29,17 +29,17 @@ export const monadMainnet = defineChain({
   testnet: false,
 });
 
-/** 현재 NETWORK에 따른 활성 체인 */
+/** Active chain based on NETWORK env */
 export const activeChain = isMainnet ? monadMainnet : monadTestnet;
 
-/** 현재 NETWORK에 따른 컨트랙트 주소 */
+/** Contract address based on NETWORK env */
 export const MUTT_NFT_ADDRESS = (
   isMainnet
     ? process.env.NEXT_PUBLIC_MAINNET_MUTT_NFT_ADDRESS
     : process.env.NEXT_PUBLIC_TESTNET_MUTT_NFT_ADDRESS
 ) as `0x${string}` | undefined;
 
-/** MUTT ERC-20 토큰 주소 */
+/** MUTT ERC-20 token address */
 export const MUTT_TOKEN_ADDRESS = (
   isMainnet
     ? process.env.NEXT_PUBLIC_MAINNET_MUTT_TOKEN_ADDRESS

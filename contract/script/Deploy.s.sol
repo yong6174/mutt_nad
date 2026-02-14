@@ -6,7 +6,7 @@ import "../src/MuttNFT.sol";
 
 contract DeployScript is Script {
     function run() external {
-        // .env NETWORK에 따라 TESTNET_ / MAINNET_ prefix 선택
+        // Select TESTNET_ / MAINNET_ prefix based on .env NETWORK
         string memory net = vm.envString("NETWORK"); // "testnet" or "mainnet"
         string memory prefix = keccak256(bytes(net)) == keccak256("mainnet")
             ? "MAINNET_"
