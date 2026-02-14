@@ -8,7 +8,6 @@ import { useBreed, useApproveBreedToken, useBreedTokenAllowance, useBreedTokenBa
 import { useCooldown } from '@/hooks/useCooldown';
 import { useSync } from '@/hooks/useSync';
 import { WalletGuard } from '@/components/WalletGuard';
-import { supabase } from '@/lib/db';
 import { isMockMode, MOCK_MUTTS } from '@/lib/mock';
 import { getPersonalityByType } from '@/lib/personality';
 import type { MBTI } from '@/types';
@@ -110,23 +109,12 @@ function BreedContent() {
     }
 
     (async () => {
-      const { data: holdings } = await supabase
-        .from('holdings')
-        .select('token_id')
-        .eq('address', addr)
-        .gt('balance', 0);
-
-      if (!holdings || holdings.length === 0) return;
-      const tokenIds = holdings.map((h) => h.token_id);
-
-      const { data: muttsData } = await supabase
-        .from('mutts')
-        .select('token_id, personality, bloodline')
-        .in('token_id', tokenIds);
-
-      if (muttsData) {
-        const slots: MuttSlot[] = muttsData.map((m) => ({
-          tokenId: m.token_id,
+      const res = await fetch(`/api/my?address=${addr}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.mutts && data.mutts.length > 0) {
+        const slots: MuttSlot[] = data.mutts.map((m: { tokenId: number; personality: string; bloodline: string }) => ({
+          tokenId: m.tokenId,
           personality: m.personality,
           bloodline: m.bloodline as BloodlineGrade,
         }));
@@ -403,7 +391,10 @@ function BreedContent() {
                   background: 'rgba(6,6,10,0.6)',
                 }}
               >
-                <div className="text-3xl mb-2 opacity-50">?</div>
+                <div className="w-[50px] h-[50px] mx-auto mb-2 overflow-hidden rounded-lg" style={{ border: '1px solid rgba(200,168,78,0.1)' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={getPersonalityByType(m.personality as MBTI).image} alt="" className="w-full h-full object-cover" />
+                </div>
                 <p className="font-display text-xs tracking-[1px]" style={{ color: '#d4c5a0' }}>
                   Mutt #{String(m.tokenId).padStart(4, '0')}
                 </p>
@@ -451,7 +442,10 @@ function BreedContent() {
                 className="p-3 text-center transition-colors hover:border-gold"
                 style={{ border: '1px solid rgba(200,168,78,0.12)', background: 'rgba(6,6,10,0.6)' }}
               >
-                <div className="text-3xl mb-2 opacity-50">?</div>
+                <div className="w-[50px] h-[50px] mx-auto mb-2 overflow-hidden rounded-lg" style={{ border: '1px solid rgba(200,168,78,0.1)' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={m.image || getPersonalityByType(m.personality as MBTI).image} alt="" className="w-full h-full object-cover" />
+                </div>
                 <p className="font-display text-xs tracking-[1px]" style={{ color: '#d4c5a0' }}>
                   Mutt #{String(m.tokenId).padStart(4, '0')}
                 </p>
@@ -491,7 +485,10 @@ function SlotCard({
       </p>
       {mutt ? (
         <>
-          <div className="text-6xl mb-3 opacity-50">?</div>
+          <div className="w-[100px] h-[100px] mx-auto mb-3 overflow-hidden rounded-lg" style={{ border: '1px solid rgba(200,168,78,0.15)' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={mutt.image || getPersonalityByType(mutt.personality as MBTI).image} alt="" className="w-full h-full object-cover" />
+          </div>
           <p className="font-display text-lg tracking-[1px] mb-1" style={{ color: '#d4c5a0' }}>
             Mutt #{String(mutt.tokenId).padStart(4, '0')}
           </p>
