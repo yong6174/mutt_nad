@@ -255,90 +255,110 @@ export default function LeaderboardPage() {
   );
 }
 
-/* ─── Tarot Card (Top 3) ─── */
+/* ─── Tarot Card (Top 3) — with frame overlay ─── */
 function TarotCard({ house, rank, isSelected, onClick }: {
   house: House; rank: number; isSelected: boolean; onClick: () => void;
 }) {
   const medals = ['', '\u2726', '\u2726', '\u2726'];
   const metalColors = ['', '#ffd700', '#c0c0c0', '#cd7f32'];
   const imgSrc = house.image || '/images/mbti/analyst.png';
+  // Silver/bronze tint via CSS filter
+  const frameFilter = rank === 2
+    ? 'saturate(0) brightness(1.2)'
+    : rank === 3
+      ? 'saturate(0.4) hue-rotate(-15deg) brightness(0.9)'
+      : 'none';
 
   return (
     <button
       onClick={onClick}
-      className="relative w-48 group transition-all duration-500"
-      style={{
-        perspective: '800px',
-        transformStyle: 'preserve-3d',
-      }}
+      className="relative group transition-all duration-500"
+      style={{ width: '210px' }}
     >
       <div
-        className="relative p-5 text-center transition-all duration-300 group-hover:-translate-y-1"
+        className="relative text-center transition-all duration-300 group-hover:-translate-y-2"
         style={{
-          border: `2px solid ${metalColors[rank]}`,
-          background: 'linear-gradient(180deg, #1e1a12 0%, #14120c 40%, #0c0b08 100%)',
-          boxShadow: isSelected
-            ? `0 0 40px rgba(200,168,78,0.3), 0 0 80px rgba(200,168,78,0.1), inset 0 1px 0 rgba(200,168,78,0.15)`
-            : `0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(200,168,78,0.1)`,
+          aspectRatio: '926 / 1280',
+          width: '100%',
         }}
       >
-        {/* Top ornament */}
-        <div className="absolute top-0 left-0 right-0 h-1"
-          style={{ background: `linear-gradient(90deg, transparent, ${metalColors[rank]}, transparent)` }}
-        />
-
-        {/* Rank */}
-        <p className="font-display text-[11px] tracking-[3px] uppercase mb-3"
-          style={{ color: metalColors[rank] }}>
-          {medals[rank]} {rank === 1 ? 'I' : rank === 2 ? 'II' : 'III'} {medals[rank]}
-        </p>
-
-        {/* Image with glow */}
-        <div className="flex justify-center mb-3 relative">
-          <div className="absolute inset-0 rounded-full blur-xl opacity-30"
-            style={{ background: metalColors[rank] }} />
-          <Image src={imgSrc} alt={house.name} width={80} height={80}
-            className="relative drop-shadow-[0_0_12px_rgba(200,168,78,0.3)]" />
+        {/* Frame image (overlay) */}
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          <Image
+            src="/images/frame-gold.png"
+            alt="frame"
+            fill
+            className="object-contain"
+            style={{ filter: frameFilter }}
+          />
         </div>
 
-        {/* House name */}
-        <p className="font-display text-[13px] tracking-[1px] mb-1" style={{ color: '#e8d48a' }}>
-          {house.childName || `Mutt #${house.childTokenId}`}
-        </p>
-        <p className="font-display text-[10px] tracking-[2px] uppercase mb-3" style={{ color: '#6a5f4a' }}>
-          {house.name}
-        </p>
+        {/* Card content (behind frame) */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-0 px-8 py-12">
+          {/* Dark card background */}
+          <div className="absolute inset-[6%] rounded-sm"
+            style={{
+              background: 'linear-gradient(180deg, #1a1710 0%, #110f0b 50%, #0a0908 100%)',
+            }}
+          />
 
-        {/* Rating */}
-        <div className="py-2" style={{ borderTop: '1px solid rgba(200,168,78,0.15)' }}>
-          <p className="font-display text-xl" style={{ color: metalColors[rank] }}>
-            {'\u2605'} {house.routeAvgRating.toFixed(2)}
-          </p>
-          <p className="text-[10px]" style={{ color: '#4a4030' }}>
-            {house.members.length} bloodline {'\u00B7'} {house.routeReviews} reviews
-          </p>
+          {/* Content */}
+          <div className="relative z-[1] flex flex-col items-center">
+            {/* Rank */}
+            <p className="font-display text-[12px] tracking-[4px] uppercase mb-3"
+              style={{ color: metalColors[rank] }}>
+              {medals[rank]} {rank === 1 ? 'I' : rank === 2 ? 'II' : 'III'} {medals[rank]}
+            </p>
+
+            {/* MBTI Image */}
+            <div className="relative mb-3">
+              <div className="absolute inset-0 blur-lg opacity-30"
+                style={{ background: metalColors[rank] }} />
+              <div className="relative p-1" style={{ border: '1px solid rgba(200,168,78,0.2)' }}>
+                <Image src={imgSrc} alt={house.name} width={90} height={60}
+                  className="relative object-cover" style={{ filter: 'brightness(0.9)' }} />
+              </div>
+            </div>
+
+            {/* House name */}
+            <p className="font-display text-[14px] tracking-[2px] mb-0.5"
+              style={{ color: '#e8d48a', textShadow: '0 0 10px rgba(200,168,78,0.3)' }}>
+              {house.childName || `Mutt #${house.childTokenId}`}
+            </p>
+            <p className="font-display text-[9px] tracking-[2px] uppercase mb-4" style={{ color: '#6a5f4a' }}>
+              {house.name}
+            </p>
+
+            {/* Divider */}
+            <div className="w-20 h-px mb-3"
+              style={{ background: `linear-gradient(90deg, transparent, ${metalColors[rank]}60, transparent)` }} />
+
+            {/* Rating */}
+            <p className="font-display text-[22px] mb-1" style={{ color: metalColors[rank] }}>
+              {'\u2605'} {house.routeAvgRating.toFixed(2)}
+            </p>
+            <p className="text-[10px] mb-3" style={{ color: '#5a5040' }}>
+              {house.members.length} bloodline {'\u00B7'} {house.routeReviews} reviews
+            </p>
+
+            {/* Token ID */}
+            <p className="font-display text-[10px] tracking-[1px]" style={{ color: '#4a4030' }}>
+              #{house.childTokenId}
+            </p>
+          </div>
         </div>
 
-        {/* Route chain */}
-        <div className="mt-2 flex items-center justify-center gap-1">
-          {house.route.map((id, ri) => (
-            <span key={id} className="flex items-center gap-1">
-              {ri > 0 && <span className="text-[8px]" style={{ color: '#3a3028' }}>{'\u2192'}</span>}
-              <span className="text-[9px] font-display" style={{ color: '#6a5f4a' }}>#{id}</span>
-            </span>
-          ))}
-        </div>
-
-        {/* Bottom ornament */}
-        <div className="absolute bottom-0 left-0 right-0 h-1"
-          style={{ background: `linear-gradient(90deg, transparent, ${metalColors[rank]}40, transparent)` }}
-        />
+        {/* Glow effect */}
+        {isSelected && (
+          <div className="absolute inset-0 z-[5] pointer-events-none"
+            style={{ boxShadow: `0 0 40px rgba(200,168,78,0.25), 0 0 80px rgba(200,168,78,0.1)` }} />
+        )}
       </div>
     </button>
   );
 }
 
-/* ─── Crest Card (4-28) ─── */
+/* ─── Crest Card (4-28) — mini frame ─── */
 function CrestCard({ house, rank, isSelected, onClick }: {
   house: House; rank: number; isSelected: boolean; onClick: () => void;
 }) {
@@ -348,27 +368,38 @@ function CrestCard({ house, rank, isSelected, onClick }: {
   return (
     <button
       onClick={onClick}
-      className="relative p-3 text-center transition-all duration-200 hover:-translate-y-0.5 group"
-      style={{
-        border: isSelected ? '1px solid rgba(200,168,78,0.5)' : '1px solid rgba(200,168,78,0.12)',
-        background: isSelected
-          ? 'linear-gradient(135deg, #1e1a12 0%, #12100c 100%)'
-          : 'linear-gradient(135deg, #16140e 0%, #0e0d0a 100%)',
-        boxShadow: isSelected ? '0 0 20px rgba(200,168,78,0.1)' : 'none',
-      }}
+      className="relative group transition-all duration-300 hover:-translate-y-1"
+      style={{ aspectRatio: '926 / 1280' }}
     >
-      <p className="font-display text-[9px] tracking-[2px] mb-2" style={{ color: '#4a4030' }}>
-        {romanRank}
-      </p>
-      <div className="flex justify-center mb-2">
-        <Image src={imgSrc} alt={house.name} width={40} height={40} className="opacity-60 group-hover:opacity-80 transition-opacity" />
+      {/* Frame */}
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        <Image src="/images/frame-gold.png" alt="frame" fill className="object-contain"
+          style={{ filter: 'brightness(0.7) saturate(0.6)', opacity: isSelected ? 1 : 0.7 }} />
       </div>
-      <p className="font-display text-[11px] tracking-[1px] truncate" style={{ color: '#d4c5a0' }}>
-        {house.childName || `#${house.childTokenId}`}
-      </p>
-      <p className="font-display text-[12px] mt-1" style={{ color: '#c8a84e' }}>
-        {'\u2605'} {house.routeAvgRating.toFixed(2)}
-      </p>
+
+      {/* Content */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center z-0 px-4 py-6">
+        <div className="absolute inset-[6%] rounded-sm"
+          style={{ background: 'linear-gradient(180deg, #16140e 0%, #0c0b08 100%)' }} />
+        <div className="relative z-[1] flex flex-col items-center">
+          <p className="font-display text-[9px] tracking-[2px] mb-2" style={{ color: '#4a4030' }}>
+            {romanRank}
+          </p>
+          <Image src={imgSrc} alt={house.name} width={36} height={36}
+            className="opacity-60 group-hover:opacity-80 transition-opacity mb-2" />
+          <p className="font-display text-[10px] tracking-[1px] truncate max-w-full" style={{ color: '#d4c5a0' }}>
+            {house.childName || `#${house.childTokenId}`}
+          </p>
+          <p className="font-display text-[11px] mt-1" style={{ color: '#c8a84e' }}>
+            {'\u2605'} {house.routeAvgRating.toFixed(2)}
+          </p>
+        </div>
+      </div>
+
+      {isSelected && (
+        <div className="absolute inset-0 z-[5] pointer-events-none"
+          style={{ boxShadow: '0 0 20px rgba(200,168,78,0.15)' }} />
+      )}
     </button>
   );
 }
