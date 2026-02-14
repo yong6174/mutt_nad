@@ -114,31 +114,35 @@ export default function FamilyTreePage() {
       </p>
 
       <div className="flex flex-col items-center gap-2">
-        {/* Grandparents — show all, genesis sides get placeholder cards */}
+        {/* Grandparents — two groups aligned under each parent */}
         {(parents[0] || parents[1]) && (
           <>
             <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#3a3028' }}>
               Grandparents
             </p>
-            <div className="flex gap-6 justify-center">
+            <div className="flex gap-16 justify-center">
               {/* Parent A's parents */}
-              {parents[0] && parents[0].parentA === 0 ? (
-                <OriginCard />
-              ) : (
-                <>
-                  {grandparents[0] && <NodeCard node={grandparents[0]} sacredIds={sacredIds} />}
-                  {grandparents[1] && <NodeCard node={grandparents[1]} sacredIds={sacredIds} />}
-                </>
-              )}
+              <div className="flex gap-4 justify-center">
+                {parents[0] && parents[0].parentA === 0 ? (
+                  <OriginCard />
+                ) : (
+                  <>
+                    {grandparents[0] && <NodeCard node={grandparents[0]} sacredIds={sacredIds} />}
+                    {grandparents[1] && <NodeCard node={grandparents[1]} sacredIds={sacredIds} />}
+                  </>
+                )}
+              </div>
               {/* Parent B's parents */}
-              {parents[1] && parents[1].parentA === 0 ? (
-                <OriginCard />
-              ) : (
-                <>
-                  {grandparents[2] && <NodeCard node={grandparents[2]} sacredIds={sacredIds} />}
-                  {grandparents[3] && <NodeCard node={grandparents[3]} sacredIds={sacredIds} />}
-                </>
-              )}
+              <div className="flex gap-4 justify-center">
+                {parents[1] && parents[1].parentA === 0 ? (
+                  <OriginCard />
+                ) : (
+                  <>
+                    {grandparents[2] && <NodeCard node={grandparents[2]} sacredIds={sacredIds} />}
+                    {grandparents[3] && <NodeCard node={grandparents[3]} sacredIds={sacredIds} />}
+                  </>
+                )}
+              </div>
             </div>
             <Connector />
           </>
