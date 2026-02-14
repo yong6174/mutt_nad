@@ -88,14 +88,18 @@ export default function FamilyTreePage() {
 
           if (!hasAnyGrandparent) return null;
 
-          // Filter: only show grandparents from non-genesis parents
-          const visibleGps: (TreeNode | null | 'hidden')[] = [
-            pAIsGenesis ? 'hidden' : grandparents[0],
-            pAIsGenesis ? 'hidden' : grandparents[1],
-            pBIsGenesis ? 'hidden' : grandparents[2],
-            pBIsGenesis ? 'hidden' : grandparents[3],
-          ];
-          const filtered = visibleGps.filter(g => g !== 'hidden');
+          // Filter: only show grandparents that actually exist (from non-genesis parents)
+          const visibleGps: TreeNode[] = [];
+          if (!pAIsGenesis) {
+            if (grandparents[0]) visibleGps.push(grandparents[0]);
+            if (grandparents[1]) visibleGps.push(grandparents[1]);
+          }
+          if (!pBIsGenesis) {
+            if (grandparents[2]) visibleGps.push(grandparents[2]);
+            if (grandparents[3]) visibleGps.push(grandparents[3]);
+          }
+
+          if (visibleGps.length === 0) return null;
 
           return (
             <>
@@ -103,8 +107,8 @@ export default function FamilyTreePage() {
                 Grandparents
               </p>
               <div className="flex gap-6 justify-center">
-                {filtered.map((gp, i) => (
-                  <NodeCard key={i} node={gp as TreeNode | null} isGenesis={gp === null} />
+                {visibleGps.map((gp, i) => (
+                  <NodeCard key={i} node={gp} />
                 ))}
               </div>
               <Connector />
@@ -150,20 +154,7 @@ export default function FamilyTreePage() {
 }
 
 function NodeCard({ node, highlight, isGenesis }: { node: TreeNode | null; highlight?: boolean; isGenesis?: boolean }) {
-  if (!node) {
-    // Unknown ancestor — show egg
-    return (
-      <div
-        className="w-36 p-3 text-center opacity-40"
-        style={{ border: '1px solid rgba(200,168,78,0.1)', background: 'rgba(12,11,8,0.6)' }}
-      >
-        <div className="flex justify-center mb-1">
-          <Image src="/images/egg.png" alt="Unknown" width={48} height={48} className="opacity-50" />
-        </div>
-        <p className="font-display text-[11px]" style={{ color: '#3a3028' }}>Unknown</p>
-      </div>
-    );
-  }
+  if (!node) return null;
 
   const isPure = node.bloodline === 'pureblood' || node.bloodline === 'sacred28';
   const imgSrc = node.image || '/images/mbti/analyst.png';
