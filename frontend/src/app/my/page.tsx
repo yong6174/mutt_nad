@@ -38,10 +38,10 @@ const BLOODLINE_LABEL: Record<BloodlineGrade, string> = {
   sacred28: 'Sacred 28',
 };
 
-const ACTIVITY_ICON: Record<string, string> = {
-  hatch: '\u{1F95A}',
-  breed: '\u{1F9EC}',
-  rating: '\u2B50',
+const ACTIVITY_LABEL: Record<string, string> = {
+  hatch: 'Genesis',
+  breed: 'Breed',
+  rating: 'Rating',
 };
 
 export default function MyPage() {
@@ -205,7 +205,10 @@ export default function MyPage() {
                 className="flex items-center gap-3 p-3"
                 style={{ border: '1px solid rgba(200,168,78,0.06)', background: 'rgba(12,11,8,0.8)' }}
               >
-                <span className="text-xl">{ACTIVITY_ICON[a.type] || '\u{1F4AC}'}</span>
+                <span className="font-display text-[10px] tracking-[1px] uppercase px-2 py-0.5"
+                  style={{ color: '#c8a84e', border: '1px solid rgba(200,168,78,0.2)', minWidth: '52px', textAlign: 'center' }}>
+                  {ACTIVITY_LABEL[a.type] || a.type}
+                </span>
                 <div className="flex-1">
                   <p className="text-sm" style={{ color: '#d4c5a0' }}>
                     {a.type === 'hatch' && `Genesis Hatch — ${(a.detail?.personality as string) || 'Unknown'}`}

@@ -12,6 +12,7 @@ import { getPersonalityByType } from '@/lib/personality';
 import type { MBTI } from '@/types';
 import { useSync } from '@/hooks/useSync';
 import { useApproveBreedToken, useBreedTokenAllowance, useBreedTokenBalance } from '@/hooks/useBreed';
+import { supabase } from '@/lib/db';
 import type { BloodlineGrade } from '@/types';
 
 interface MuttData {
@@ -51,6 +52,7 @@ export default function MuttProfilePage() {
   const [loading, setLoading] = useState(true);
   const [ratingScore, setRatingScore] = useState(0);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [isSacred, setIsSacred] = useState(false);
   const [breedCostInput, setBreedCostInput] = useState('');
   const { setBreedCost, isPending: costPending, isSuccess: costSuccess } = useSetBreedCost();
   const { mint, isPending: mintPending, isConfirming: mintConfirming, isSuccess: mintSuccess } = useMint();
@@ -82,6 +84,36 @@ export default function MuttProfilePage() {
           if (data.hasRated) {
             setRatingSubmitted(true);
             setRatingScore(data.myRating ?? 0);
+          }
+
+          // Check Sacred 28 membership
+          if (data.bloodline === 'pureblood' || data.bloodline === 'sacred28') {
+            const { data: routeData } = await supabase
+              .from('mutts')
+              .select('token_id, pureblood_route')
+              .not('pureblood_route', 'is', null);
+            if (routeData) {
+              const houseMap = new Map<number, { avgRating: number; memberIds: Set<number> }>();
+              for (const m of routeData) {
+                const route = m.pureblood_route as { path: number[]; avgRating: number } | null;
+                if (!route?.path?.length) continue;
+                const childId = route.path[0];
+                if (!houseMap.has(childId)) {
+                  houseMap.set(childId, { avgRating: route.avgRating, memberIds: new Set() });
+                }
+                const house = houseMap.get(childId)!;
+                for (const id of route.path) house.memberIds.add(id);
+              }
+              const top28 = Array.from(houseMap.entries())
+                .sort((a, b) => b[1].avgRating - a[1].avgRating)
+                .slice(0, 28);
+              for (const [, house] of top28) {
+                if (house.memberIds.has(data.tokenId)) {
+                  setIsSacred(true);
+                  break;
+                }
+              }
+            }
           }
         }
       } catch {
@@ -120,7 +152,7 @@ export default function MuttProfilePage() {
     return <div className="text-center py-20 font-display" style={{ color: '#6a5f4a' }}>Mutt not found</div>;
   }
 
-  const bl = BLOODLINE_DISPLAY[mutt.bloodline];
+  const bl = isSacred ? BLOODLINE_DISPLAY.sacred28 : BLOODLINE_DISPLAY[mutt.bloodline];
   const isBreeder = address?.toLowerCase() === mutt.breeder.toLowerCase();
   const breedCostDisplay = mutt.onChain?.breedCost
     ? (Number(mutt.onChain.breedCost) / 1e18).toFixed(4)
@@ -255,14 +287,13 @@ export default function MuttProfilePage() {
               ) : (
                 <div
                   key={label}
-                  className="flex-1 p-3 text-center"
+                  className="flex-1 p-3 text-center flex flex-col items-center justify-center"
                   style={{ border: '1px solid rgba(200,168,78,0.08)' }}
                 >
-                  <p className="font-display text-[10px] uppercase tracking-[2px]" style={{ color: '#3a3028' }}>
+                  <p className="font-display text-[10px] uppercase tracking-[2px] mb-2" style={{ color: '#3a3028' }}>
                     Origin
                   </p>
-                  <p className="text-3xl my-2">{'\u{1F95A}'}</p>
-                  <p className="text-xs" style={{ color: '#6a5f4a' }}>Genesis</p>
+                  <p className="font-display text-sm tracking-[2px]" style={{ color: '#6a5f4a' }}>Genesis</p>
                 </div>
               )
             )}
