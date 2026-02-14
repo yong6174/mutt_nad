@@ -7,7 +7,8 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 const NAV_ITEMS = [
   { href: '/hatch', label: 'Hatch' },
   { href: '/breed', label: 'Breed' },
-  { href: '/leaderboard', label: 'Leaderboard' },
+  { href: '/explore', label: 'Explore' },
+  { href: '/leaderboard', label: 'Sacred 28' },
   { href: '/my', label: 'My' },
 ];
 

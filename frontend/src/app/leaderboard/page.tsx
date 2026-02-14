@@ -311,6 +311,17 @@ export default function LeaderboardPage() {
                             </Link>
                           );
                         })}
+                      {/* Family Tree link */}
+                      <Link
+                        href={`/family/${house.childTokenId}`}
+                        className="flex items-center justify-center gap-2 p-3 mt-1 transition-colors hover:bg-[rgba(200,168,78,0.06)]"
+                        style={{ borderTop: '1px solid rgba(200,168,78,0.08)' }}
+                      >
+                        <span className="text-sm" style={{ color: '#6a5f4a' }}>{'\u{1F333}'}</span>
+                        <span className="font-display text-[11px] tracking-[2px] uppercase" style={{ color: '#6a5f4a' }}>
+                          View Family Tree
+                        </span>
+                      </Link>
                     </div>
                   )}
                 </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { BloodlineGrade } from '@/types';
 
 interface TreeNode {
@@ -78,17 +79,38 @@ export default function FamilyTreePage() {
       </p>
 
       <div className="flex flex-col items-center gap-2">
-        {/* Grandparents */}
-        <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#3a3028' }}>
-          Grandparents
-        </p>
-        <div className="flex gap-6 justify-center">
-          {grandparents.map((gp, i) => (
-            <NodeCard key={i} node={gp} />
-          ))}
-        </div>
+        {/* Grandparents — only show if at least one parent is NOT genesis */}
+        {(() => {
+          // parentA is genesis if parentA.parentA === 0 (no grandparents on that side)
+          const pAIsGenesis = !parents[0] || parents[0].parentA === 0;
+          const pBIsGenesis = !parents[1] || parents[1].parentA === 0;
+          const hasAnyGrandparent = !pAIsGenesis || !pBIsGenesis;
 
-        <Connector />
+          if (!hasAnyGrandparent) return null;
+
+          // Filter: only show grandparents from non-genesis parents
+          const visibleGps: (TreeNode | null | 'hidden')[] = [
+            pAIsGenesis ? 'hidden' : grandparents[0],
+            pAIsGenesis ? 'hidden' : grandparents[1],
+            pBIsGenesis ? 'hidden' : grandparents[2],
+            pBIsGenesis ? 'hidden' : grandparents[3],
+          ];
+          const filtered = visibleGps.filter(g => g !== 'hidden');
+
+          return (
+            <>
+              <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#3a3028' }}>
+                Grandparents
+              </p>
+              <div className="flex gap-6 justify-center">
+                {filtered.map((gp, i) => (
+                  <NodeCard key={i} node={gp as TreeNode | null} isGenesis={gp === null} />
+                ))}
+              </div>
+              <Connector />
+            </>
+          );
+        })()}
 
         {/* Parents */}
         <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#3a3028' }}>
@@ -96,7 +118,7 @@ export default function FamilyTreePage() {
         </p>
         <div className="flex gap-28 justify-center">
           {parents.map((p, i) => (
-            <NodeCard key={i} node={p} />
+            <NodeCard key={i} node={p} isGenesis={p !== null && p.parentA === 0} />
           ))}
         </div>
 
@@ -127,20 +149,24 @@ export default function FamilyTreePage() {
   );
 }
 
-function NodeCard({ node, highlight }: { node: TreeNode | null; highlight?: boolean }) {
+function NodeCard({ node, highlight, isGenesis }: { node: TreeNode | null; highlight?: boolean; isGenesis?: boolean }) {
   if (!node) {
+    // Unknown ancestor — show egg
     return (
       <div
-        className="w-36 p-3 text-center opacity-30"
+        className="w-36 p-3 text-center opacity-40"
         style={{ border: '1px solid rgba(200,168,78,0.1)', background: 'rgba(12,11,8,0.6)' }}
       >
-        <p className="text-3xl mb-1">{'\u{1F95A}'}</p>
-        <p className="font-display text-[11px]" style={{ color: '#3a3028' }}>Genesis</p>
+        <div className="flex justify-center mb-1">
+          <Image src="/images/egg.png" alt="Unknown" width={48} height={48} className="opacity-50" />
+        </div>
+        <p className="font-display text-[11px]" style={{ color: '#3a3028' }}>Unknown</p>
       </div>
     );
   }
 
   const isPure = node.bloodline === 'pureblood' || node.bloodline === 'sacred28';
+  const imgSrc = node.image || '/images/mbti/analyst.png';
 
   return (
     <Link
@@ -157,7 +183,15 @@ function NodeCard({ node, highlight }: { node: TreeNode | null; highlight?: bool
       }}
     >
       {isPure && <span className="absolute -top-2 -right-2 text-sm">{'\u{1F451}'}</span>}
-      <div className="text-3xl mb-1 opacity-50">?</div>
+      {isGenesis && (
+        <span className="absolute -top-2 -left-2 font-display text-[9px] tracking-[1px] px-1.5 py-0.5"
+          style={{ background: 'rgba(12,11,8,0.9)', border: '1px solid rgba(200,168,78,0.2)', color: '#6a5f4a' }}>
+          GEN0
+        </span>
+      )}
+      <div className="flex justify-center mb-1">
+        <Image src={imgSrc} alt={node.personality} width={48} height={48} className="opacity-70" />
+      </div>
       <p className="font-display text-[11px] tracking-[1px]" style={{ color: '#d4c5a0' }}>
         Mutt #{String(node.tokenId).padStart(4, '0')}
       </p>
