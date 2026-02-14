@@ -124,7 +124,7 @@ export default function FamilyTreePage() {
               {/* Parent A's parents */}
               <div className="flex gap-4 justify-center">
                 {parents[0] && parents[0].parentA === 0 ? (
-                  <OriginCard />
+                  <><OriginCard /><OriginCard /></>
                 ) : (
                   <>
                     {grandparents[0] && <NodeCard node={grandparents[0]} sacredIds={sacredIds} />}
@@ -135,7 +135,7 @@ export default function FamilyTreePage() {
               {/* Parent B's parents */}
               <div className="flex gap-4 justify-center">
                 {parents[1] && parents[1].parentA === 0 ? (
-                  <OriginCard />
+                  <><OriginCard /><OriginCard /></>
                 ) : (
                   <>
                     {grandparents[2] && <NodeCard node={grandparents[2]} sacredIds={sacredIds} />}
