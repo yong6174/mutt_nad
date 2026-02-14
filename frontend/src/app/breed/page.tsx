@@ -346,7 +346,8 @@ function BreedContent() {
             <button
               onClick={handleApprove}
               disabled={approvePending || !!insufficientBalance}
-              className="px-12 py-4 border-2 border-gold text-gold font-display font-semibold tracking-[3px] uppercase disabled:opacity-30 relative overflow-hidden group bg-transparent"
+              className="py-4 border-2 border-gold text-gold font-display font-semibold tracking-[3px] uppercase disabled:opacity-30 relative overflow-hidden group bg-transparent text-center"
+              style={{ minWidth: '280px' }}
             >
               <span className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-[400ms] z-0" />
               <span className="relative z-10 group-hover:text-[#06060a] transition-colors duration-[400ms]">
@@ -357,8 +358,8 @@ function BreedContent() {
             <button
               onClick={handleBreed}
               disabled={!myMutt || !partner || loading || !!insufficientBalance || !cooldownReady}
-              className="px-12 py-4 border-2 border-gold text-gold font-display font-semibold tracking-[3px] uppercase disabled:opacity-30 relative overflow-hidden group bg-transparent"
-              style={{ boxShadow: myMutt && partner && cooldownReady ? '0 0 30px rgba(200,168,78,0.3)' : 'none' }}
+              className="py-4 border-2 border-gold text-gold font-display font-semibold tracking-[3px] uppercase disabled:opacity-30 relative overflow-hidden group bg-transparent text-center"
+              style={{ minWidth: '280px', boxShadow: myMutt && partner && cooldownReady ? '0 0 30px rgba(200,168,78,0.3)' : 'none' }}
             >
               <span className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-[400ms] z-0" />
               <span className="relative z-10 group-hover:text-[#06060a] transition-colors duration-[400ms]">
