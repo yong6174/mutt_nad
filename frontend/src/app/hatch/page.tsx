@@ -224,13 +224,28 @@ export default function HatchPage() {
           state === 'signing' || state === 'confirming' || state === 'syncing' || (txPending || isConfirming || syncing) ? 'flex' : 'hidden'
         }`}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/images/egg.webp"
-          alt="Egg"
-          className="w-32 h-32 mb-6 object-contain"
-          style={{ animation: 'egg-float 2.5s ease-in-out infinite' }}
-        />
+        {/* Animated loading indicator */}
+        <div className="relative w-20 h-20 mb-8">
+          <div className="absolute inset-0 rounded-full"
+            style={{
+              border: '2px solid rgba(200,168,78,0.1)',
+            }} />
+          <div className="absolute inset-0 rounded-full"
+            style={{
+              border: '2px solid transparent',
+              borderTopColor: '#c8a84e',
+              animation: 'spin 1.5s linear infinite',
+            }} />
+          <div className="absolute inset-3 rounded-full"
+            style={{
+              border: '1px solid transparent',
+              borderBottomColor: 'rgba(200,168,78,0.4)',
+              animation: 'spin 2s linear infinite reverse',
+            }} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-xl" style={{ color: '#c8a84e' }}>{'\u2726'}</span>
+          </div>
+        </div>
         <p className="font-display text-xl tracking-[6px] uppercase mb-4" style={{ color: '#c8a84e' }}>
           {txPending ? 'Confirm in Wallet...' : syncing || state === 'syncing' ? 'Syncing...' : 'Confirming Transaction...'}
         </p>
