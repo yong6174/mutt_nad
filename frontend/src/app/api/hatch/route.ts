@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db';
 import { signHatch } from '@/lib/server/signer';
-import { analyzeIdentity, randomMbti } from '@/lib/server/llm';
+import { analyzeIdentity, randomMbti, randomName } from '@/lib/server/llm';
 import { MBTI_INDEX, type MBTI } from '@/types';
 import { createPublicClient, http } from 'viem';
 import { activeChain, MUTT_NFT_ADDRESS } from '@/lib/chain';
@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
 
     // Determine personality
     let mbti: string;
+    let name: string;
     let description: string;
     let traits: { color: string; expression: string; accessory: string };
 
@@ -78,16 +79,19 @@ export async function POST(req: NextRequest) {
       try {
         const result = await analyzeIdentity(identity);
         mbti = result.mbti;
+        name = result.name;
         description = result.description;
         traits = result.traits;
       } catch {
         // LLM unavailable — fallback to random
         mbti = randomMbti();
+        name = randomName();
         description = 'A mysterious creature born from pure chaos';
         traits = { color: 'gray', expression: 'curious', accessory: 'none' };
       }
     } else {
       mbti = randomMbti();
+      name = randomName();
       description = 'A mysterious creature born from pure chaos';
       traits = { color: 'gray', expression: 'curious', accessory: 'none' };
     }
@@ -123,7 +127,7 @@ export async function POST(req: NextRequest) {
       action: 'hatch',
       personality: personalityIndex,
       personality_type: mbti,
-      personality_desc: description,
+      personality_desc: `${name} — ${description}`,
       traits,
       identity: identity || null,
     });
@@ -135,7 +139,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       personality: personalityIndex,
       personalityType: mbti,
-      personalityDesc: description,
+      personalityDesc: `${name} — ${description}`,
+      name,
       traits,
       signature,
       nonce: Number(nonce),

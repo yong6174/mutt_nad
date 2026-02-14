@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 const personalitySchema = z.object({
   mbti: z.string(),
+  name: z.string(),
   description: z.string(),
   traits: z.object({
     color: z.string(),
@@ -23,11 +24,12 @@ export async function analyzeIdentity(identity: string) {
   const { object } = await generateObject({
     model: openai('gpt-4o-mini'),
     schema: personalitySchema,
-    prompt: `You are a personality analyst. Given an AI bot's IDENTITY.md, determine its MBTI type.
+    prompt: `You are a personality analyst for magical creatures. Given an AI bot's IDENTITY.md, determine its MBTI type and create a unique name.
 
 Rules:
 - Analyze each axis independently: E/I, S/N, T/F, J/P
 - Return the MBTI type (one of: ${MBTI_LIST.join(', ')})
+- Create a unique, memorable creature name (1-2 words, fantasy/magical style, e.g. "Nyx", "Ember Fang", "Solace", "Void Walker")
 - Provide a one-line personality description (max 80 chars, English)
 - Determine visual traits: color (single word), expression (single word), accessory (single word)
 
@@ -43,6 +45,7 @@ ${identity}
 
   return {
     mbti,
+    name: object.name || randomName(),
     description: object.description,
     traits: object.traits,
   };
@@ -57,7 +60,7 @@ export async function analyzeBreeding(
   const { object } = await generateObject({
     model: openai('gpt-4o-mini'),
     schema: personalitySchema,
-    prompt: `You are a genetic personality mixer. Given two parent personalities, determine the offspring's MBTI.
+    prompt: `You are a genetic personality mixer for magical creatures. Given two parent personalities, determine the offspring's MBTI.
 
 Rules:
 - For each axis (E/I, S/N, T/F, J/P):
@@ -65,6 +68,7 @@ Rules:
   - If parents differ, weight by identity richness, otherwise 50/50
 - Apply 10% overall mutation chance (one random axis flips)
 - Return the MBTI type (one of: ${MBTI_LIST.join(', ')})
+- Create a unique, memorable creature name (1-2 words, fantasy/magical style, e.g. "Nyx", "Ember Fang", "Solace", "Void Walker")
 - Create a unique one-line personality description (max 80 chars, English)
 - Determine visual traits: color (single word), expression (single word), accessory (single word)
 
@@ -87,6 +91,7 @@ ${parentBIdentity || 'No identity provided'}
 
   return {
     mbti,
+    name: object.name || randomName(),
     description: object.description,
     traits: object.traits,
   };
@@ -94,6 +99,24 @@ ${parentBIdentity || 'No identity provided'}
 
 export function randomMbti(): string {
   return MBTI_LIST[Math.floor(Math.random() * 16)];
+}
+
+const NAME_PREFIXES = [
+  'Shadow', 'Ember', 'Frost', 'Void', 'Storm', 'Rune', 'Iron', 'Ash',
+  'Dusk', 'Dawn', 'Luna', 'Sol', 'Nyx', 'Hex', 'Onyx', 'Sage',
+  'Thorn', 'Blaze', 'Ghost', 'Vex', 'Jinx', 'Flux', 'Zephyr', 'Obsidian',
+  'Crimson', 'Aether', 'Gloom', 'Spark', 'Wraith', 'Fable', 'Myth', 'Echo',
+];
+const NAME_SUFFIXES = [
+  'Fang', 'Walker', 'Bane', 'Weaver', 'Claw', 'Heart', 'Shade', 'Howl',
+  'Born', 'Forge', 'Song', 'Drift', 'Whisper', 'Blaze', 'Thorn', 'Wing',
+  '', '', '', '', '', '', '', '', // 50% chance of single word
+];
+
+export function randomName(): string {
+  const prefix = NAME_PREFIXES[Math.floor(Math.random() * NAME_PREFIXES.length)];
+  const suffix = NAME_SUFFIXES[Math.floor(Math.random() * NAME_SUFFIXES.length)];
+  return suffix ? `${prefix} ${suffix}` : prefix;
 }
 
 export function mbtiGeneticFallback(parentA: string, parentB: string): string {

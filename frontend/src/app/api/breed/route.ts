@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db';
 import { signBreed } from '@/lib/server/signer';
-import { analyzeBreeding, mbtiGeneticFallback, randomMbti } from '@/lib/server/llm';
+import { analyzeBreeding, mbtiGeneticFallback, randomMbti, randomName } from '@/lib/server/llm';
 import { MBTI_INDEX, type MBTI } from '@/types';
 import { createPublicClient, http } from 'viem';
 import { activeChain, MUTT_NFT_ADDRESS } from '@/lib/chain';
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
 
     // Determine offspring personality
     let mbti: string;
+    let name: string;
     let description: string;
     let traits: { color: string; expression: string; accessory: string };
 
@@ -76,17 +77,20 @@ export async function POST(req: NextRequest) {
           pB.personality
         );
         mbti = result.mbti;
+        name = result.name;
         description = result.description;
         traits = result.traits;
       } catch {
         // LLM unavailable — fallback to genetic
         mbti = mbtiGeneticFallback(pA.personality, pB.personality);
+        name = randomName();
         description = 'Born from the union of two wandering souls';
         traits = { color: 'gray', expression: 'neutral', accessory: 'none' };
       }
     } else {
       // Both empty — genetic fallback
       mbti = mbtiGeneticFallback(pA.personality, pB.personality);
+      name = randomName();
       description = 'Born from the union of two wandering souls';
       traits = { color: 'gray', expression: 'neutral', accessory: 'none' };
     }
@@ -128,7 +132,7 @@ export async function POST(req: NextRequest) {
       action: 'breed',
       personality: personalityIndex,
       personality_type: mbti,
-      personality_desc: description,
+      personality_desc: `${name} — ${description}`,
       traits,
       identity: null,
       parent_a: parentA,
@@ -138,7 +142,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       personality: personalityIndex,
       personalityType: mbti,
-      personalityDesc: description,
+      personalityDesc: `${name} — ${description}`,
+      name,
       traits,
       signature,
       nonce: Number(nonce),
