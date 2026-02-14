@@ -114,42 +114,35 @@ export default function FamilyTreePage() {
       </p>
 
       <div className="flex flex-col items-center gap-2">
-        {/* Grandparents — only show if at least one parent is NOT genesis */}
-        {(() => {
-          // parentA is genesis if parentA.parentA === 0 (no grandparents on that side)
-          const pAIsGenesis = !parents[0] || parents[0].parentA === 0;
-          const pBIsGenesis = !parents[1] || parents[1].parentA === 0;
-          const hasAnyGrandparent = !pAIsGenesis || !pBIsGenesis;
-
-          if (!hasAnyGrandparent) return null;
-
-          // Filter: only show grandparents that actually exist (from non-genesis parents)
-          const visibleGps: TreeNode[] = [];
-          if (!pAIsGenesis) {
-            if (grandparents[0]) visibleGps.push(grandparents[0]);
-            if (grandparents[1]) visibleGps.push(grandparents[1]);
-          }
-          if (!pBIsGenesis) {
-            if (grandparents[2]) visibleGps.push(grandparents[2]);
-            if (grandparents[3]) visibleGps.push(grandparents[3]);
-          }
-
-          if (visibleGps.length === 0) return null;
-
-          return (
-            <>
-              <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#3a3028' }}>
-                Grandparents
-              </p>
-              <div className="flex gap-6 justify-center">
-                {visibleGps.map((gp, i) => (
-                  <NodeCard key={i} node={gp} sacredIds={sacredIds} />
-                ))}
-              </div>
-              <Connector />
-            </>
-          );
-        })()}
+        {/* Grandparents — show all, genesis sides get placeholder cards */}
+        {(parents[0] || parents[1]) && (
+          <>
+            <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#3a3028' }}>
+              Grandparents
+            </p>
+            <div className="flex gap-6 justify-center">
+              {/* Parent A's parents */}
+              {parents[0] && parents[0].parentA === 0 ? (
+                <OriginCard />
+              ) : (
+                <>
+                  {grandparents[0] && <NodeCard node={grandparents[0]} sacredIds={sacredIds} />}
+                  {grandparents[1] && <NodeCard node={grandparents[1]} sacredIds={sacredIds} />}
+                </>
+              )}
+              {/* Parent B's parents */}
+              {parents[1] && parents[1].parentA === 0 ? (
+                <OriginCard />
+              ) : (
+                <>
+                  {grandparents[2] && <NodeCard node={grandparents[2]} sacredIds={sacredIds} />}
+                  {grandparents[3] && <NodeCard node={grandparents[3]} sacredIds={sacredIds} />}
+                </>
+              )}
+            </div>
+            <Connector />
+          </>
+        )}
 
         {/* Parents */}
         <p className="font-display text-[10px] tracking-[2px] uppercase mb-2" style={{ color: '#3a3028' }}>
@@ -283,6 +276,23 @@ function NodeCard({ node, highlight, isGenesis, sacredIds }: { node: TreeNode | 
         </p>
       )}
     </Link>
+  );
+}
+
+function OriginCard() {
+  return (
+    <div
+      className="w-40 p-4 text-center flex flex-col items-center justify-center"
+      style={{
+        border: '1px solid rgba(200,168,78,0.08)',
+        background: 'linear-gradient(135deg, #14120e 0%, #0c0b08 100%)',
+      }}
+    >
+      <p className="font-display text-[10px] uppercase tracking-[2px] mb-2" style={{ color: '#3a3028' }}>
+        Origin
+      </p>
+      <p className="font-display text-sm tracking-[2px]" style={{ color: '#4a4030' }}>Genesis</p>
+    </div>
   );
 }
 
