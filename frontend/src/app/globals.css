@@ -25,6 +25,38 @@ body {
   overflow-x: hidden;
 }
 
+/* Ambient background — subtle radial gradient + noise grain */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Radial gradient — dark purple/brown center glow */
+body::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(30, 20, 40, 0.6) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 80% at 80% 80%, rgba(40, 28, 15, 0.3) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 50% at 15% 70%, rgba(25, 18, 35, 0.25) 0%, transparent 55%);
+}
+
+/* Noise texture overlay */
+body::after {
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* Ensure content sits above background layers */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
