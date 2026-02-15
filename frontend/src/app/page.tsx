@@ -245,7 +245,7 @@ export default function LandingPage() {
               Dear Wanderer,
             </p>
 
-            <div className="text-[19px] leading-[1.9] mb-8" style={{ color: '#c4b68a' }}>
+            <div className="text-[19px] leading-[1.55] mb-8" style={{ color: '#c4b68a' }}>
               You have been chosen to enter{' '}
               <em className="text-gold italic">the bloodlines</em>.
               <br /><br />

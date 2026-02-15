@@ -25,7 +25,7 @@ export function Header() {
       }}
     >
       <Link href="/" className="flex items-center gap-2">
-        <Image src="/images/logo.webp" alt="Mutt" width={36} height={36} className="rounded-full" />
+        <Image src="/images/logo.webp" alt="Mutt" width={48} height={48} className="rounded-full" />
         <span className="font-display text-[22px] font-bold text-gold tracking-[4px]">MUTT</span>
       </Link>
 
