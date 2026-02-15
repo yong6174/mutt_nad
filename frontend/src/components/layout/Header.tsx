@@ -35,7 +35,7 @@ export function Header() {
             key={href}
             href={href}
             className={`font-display text-[13px] tracking-[2px] uppercase transition-colors ${
-              pathname === href ? 'text-gold' : 'text-text-secondary hover:text-gold'
+              pathname === href ? 'text-gold' : 'text-gold-dim hover:text-gold'
             }`}
           >
             {label}
