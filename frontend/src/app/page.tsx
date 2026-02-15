@@ -227,7 +227,7 @@ export default function LandingPage() {
         }`}
       >
         {/* Letter Card */}
-        <section className="flex justify-center px-6 py-20" style={{ minHeight: '100vh' }}>
+        <section className="flex justify-center px-6 pt-6 pb-20" style={{ minHeight: '100vh' }}>
           <div
             className={`max-w-[560px] w-full relative transition-all duration-1000 ${
               letterVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-[30px]'
