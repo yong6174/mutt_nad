@@ -379,6 +379,9 @@ export default function MuttProfilePage() {
             Family Tree
           </Link>
         </div>
+
+        {/* Download Soul — owner only */}
+        {address && <SoulDownload tokenId={mutt.tokenId} address={address} />}
       </div>
     </div>
   );
@@ -489,6 +492,86 @@ function MintSection({
           </span>
         </button>
       )}
+    </div>
+  );
+}
+
+function SoulDownload({ tokenId, address }: { tokenId: number; address: `0x${string}` }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [soulData, setSoulData] = useState<{ identity: string; soul: string } | null>(null);
+
+  const fetchSoul = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/mutt/${tokenId}/soul?address=${address.toLowerCase()}`);
+      if (res.status === 403) {
+        setError('Only owners can download soul files');
+        return;
+      }
+      if (!res.ok) {
+        setError('Failed to generate soul');
+        return;
+      }
+      const data = await res.json();
+      setSoulData(data);
+    } catch {
+      setError('Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const download = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (!soulData) {
+    return (
+      <div className="p-5" style={{ border: '1px solid rgba(200,168,78,0.15)', background: 'rgba(12,11,8,0.8)' }}>
+        <h3 className="font-display text-xs text-gold tracking-[2px] uppercase mb-3">Export Soul</h3>
+        <p className="text-[11px] mb-3" style={{ color: '#6a5f4a' }}>
+          Download this Mutt&apos;s personality files to use with your AI agent.
+        </p>
+        <button
+          onClick={fetchSoul}
+          disabled={loading}
+          className="w-full py-2.5 border border-gold text-gold font-display text-xs tracking-[2px] uppercase disabled:opacity-30 hover:bg-gold hover:text-[#06060a] transition-colors"
+        >
+          {loading ? 'Generating...' : 'Generate Soul Files'}
+        </button>
+        {error && <p className="text-[11px] text-red-400 mt-2">{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-5" style={{ border: '1px solid rgba(200,168,78,0.15)', background: 'rgba(12,11,8,0.8)' }}>
+      <h3 className="font-display text-xs text-gold tracking-[2px] uppercase mb-3">Export Soul</h3>
+      <p className="text-[11px] mb-4" style={{ color: '#7dba7d' }}>
+        Soul files ready. Download and use with your AI agent.
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={() => download(soulData.soul, `SOUL-${tokenId}.md`)}
+          className="flex-1 py-2.5 border border-gold text-gold font-display text-[11px] tracking-[2px] uppercase hover:bg-gold hover:text-[#06060a] transition-colors"
+        >
+          SOUL.md
+        </button>
+        <button
+          onClick={() => download(soulData.identity, `IDENTITY-${tokenId}.md`)}
+          className="flex-1 py-2.5 border border-gold text-gold font-display text-[11px] tracking-[2px] uppercase hover:bg-gold hover:text-[#06060a] transition-colors"
+        >
+          IDENTITY.md
+        </button>
+      </div>
     </div>
   );
 }
