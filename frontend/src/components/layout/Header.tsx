@@ -34,7 +34,7 @@ export function Header() {
           <Link
             key={href}
             href={href}
-            className={`font-display text-[15px] tracking-[2px] uppercase transition-colors ${
+            className={`font-display text-[15px] font-semibold tracking-[2px] uppercase transition-colors ${
               pathname === href ? 'text-gold' : 'text-gold-dim hover:text-gold'
             }`}
           >
