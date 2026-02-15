@@ -114,6 +114,8 @@ export default function LandingPage() {
 
         {/* Text above circle */}
         <div className="text-center pointer-events-none mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/logo.webp" alt="Mutt" className="w-24 h-24 mx-auto mb-6 rounded-full" style={{ filter: 'drop-shadow(0 0 20px rgba(200,168,78,0.4))' }} />
           <h1
             className="font-display text-[42px] tracking-[6px] leading-tight mb-4 font-semibold"
             style={{

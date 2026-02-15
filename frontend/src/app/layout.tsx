@@ -21,6 +21,10 @@ const crimsonText = Crimson_Text({
 export const metadata: Metadata = {
   title: 'Mutt — Hatch. Breed. Chaos.',
   description: 'AI companion breeding platform on Monad. Purebloods are earned, not born.',
+  icons: {
+    icon: '/images/logo-64.png',
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default function RootLayout({

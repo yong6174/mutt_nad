@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 
@@ -23,8 +24,9 @@ export function Header() {
         borderBottom: '1px solid rgba(200,168,78,0.1)',
       }}
     >
-      <Link href="/" className="font-display text-[22px] font-bold text-gold tracking-[4px]">
-        MUTT
+      <Link href="/" className="flex items-center gap-2">
+        <Image src="/images/logo.webp" alt="Mutt" width={36} height={36} className="rounded-full" />
+        <span className="font-display text-[22px] font-bold text-gold tracking-[4px]">MUTT</span>
       </Link>
 
       <nav className="flex gap-8">
