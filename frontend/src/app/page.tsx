@@ -54,16 +54,23 @@ export default function LandingPage() {
     // Fetch real stats + recent feed
     if (!isMockMode()) {
       (async () => {
-        const [totalRes, pureRes, sacredRes, feedRes] = await Promise.all([
+        const [totalRes, pureRes, sacredRouteRes, feedRes] = await Promise.all([
           supabase.from('mutts').select('token_id', { count: 'exact', head: true }),
           supabase.from('mutts').select('token_id', { count: 'exact', head: true }).eq('bloodline', 'pureblood'),
-          supabase.from('mutts').select('token_id', { count: 'exact', head: true }).eq('bloodline', 'sacred28'),
+          supabase.from('mutts').select('token_id, pureblood_route').not('pureblood_route', 'is', null),
           supabase.from('mutts').select('token_id, personality, bloodline').order('created_at', { ascending: false }).limit(8),
         ]);
+        // Count unique houses (child token ID = house root)
+        const sacredCount = sacredRouteRes.data
+          ? new Set(sacredRouteRes.data.map((m) => {
+              const route = m.pureblood_route as { path: number[] } | null;
+              return route?.path?.[0] ?? m.token_id;
+            })).size
+          : 0;
         setStats({
           total: totalRes.count ?? 0,
           purebloods: pureRes.count ?? 0,
-          sacred: sacredRes.count ?? 0,
+          sacred: Math.min(sacredCount, 28),
         });
         if (feedRes.data && feedRes.data.length > 0) {
           setFeed(feedRes.data.map((m) => ({ tokenId: m.token_id, personality: m.personality, bloodline: m.bloodline })));
